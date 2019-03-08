@@ -10,7 +10,7 @@ import Tracking_Visuals as vis
 import numpy as np
 import matplotlib.pyplot as plt
 
-fpath='/Users/laurieshaw/Documents/Football/Data/TrackingData/Tracab/' # path to directory of Tracab data
+fpath='/PATH/TO/YOUR/TRACAB/DATA/DIRECTORY/' # path to directory of Tracab data
 fname = "Brighton and Hove AlbionBournemouth2018-12-22T15,00,00Z.txt.g987762" # filename of Tracab match
 
 # read frames, match meta data, and data for individual players
@@ -35,7 +35,7 @@ frames_in_segment = vis.get_frames_between_timestamps(frames_tb,match_tb,tstart,
 vis.save_match_clip(frames_in_segment,match_tb,fpath=fpath,fname='my_test_movie',include_player_velocities=False) 
 
 # make a plot of a player 2's position (home team) over the first half
-# this is a bit clumsy
+# it shows you how to access the positions/velocities of a given player over time
 fig,ax = vis.plot_pitch(match_tb) # plot pitch
 px = np.array( [f.pos_x for f in team1_players[2].frame_targets] )
 py = np.array( [f.pos_y for f in team1_players[2].frame_targets] )
