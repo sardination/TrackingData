@@ -1,2 +1,3 @@
 # TrackingData
-Contains python code to read and analyze tracking data
+Python code to read and analyze tracking data
+Look at the example script to get started.
