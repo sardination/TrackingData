@@ -10,7 +10,7 @@ import Tracking_Visuals as vis
 import numpy as np
 import matplotlib.pyplot as plt
 
-fpath='/Users/laurieshaw/Documents/Football/Data/TrackingData/Tracab/RawData/' # path to directory of Tracab data
+fpath='/PATH/TO/WHERE/YOU/SAVED/TRACKING/DATA/' # path to directory of Tracab data
 
 #fname_dict = tracab.get_filename_dict()
 fname = 'SouthamptonManchester City2018-11-04T15,00,00Z.txt.g987698'# filename of Tracab match
