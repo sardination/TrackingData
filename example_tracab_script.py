@@ -21,19 +21,16 @@ frames_tb, match_tb, team1_players, team0_players = tracab.read_tracab_match_dat
 # team1_players is a dictionary of the home team players (containing arrays of their positions/velocities over the match)
 # team0_players is a dictionary of the away team players (containing arrays of their positions/velocities over the match)
 
-# plot the pitch, players and ball in a single frame. 
+# EXAMPLE: plot the pitch, players and ball in a single frame. 
 # the co-ordinate system has the origin in the center of the pitch. x-axis is left-right, y-axis is up-down. Distances are in cm by default.
 fig,ax = vis.plot_frame(frames_tb[1000],match_tb,include_player_velocities=True,include_ball_velocities=False)
 
-# get all frames between the 19th and 21st minute in the first half
+# EXAMPLE: get all frames between the 19th and 21st minute in the first half
 tstart = (1,19)
 tend = (1,21)
 frames_in_segment = vis.get_frames_between_timestamps(frames_tb,match_tb,tstart,tend)
 
-# make a movie of a list of frames and save it in fpath
-vis.save_match_clip(frames_in_segment,match_tb,fpath=fpath,fname='my_test_movie',include_player_velocities=False) 
-
-# get the co-ordinate of the ball throughout the match
+# EXAMPLE: get the x,y,z positions and velocities of the ball throughout the first half
 frames_in_first_half = frames_tb[ 0:match_tb.period_attributes[1]['iEnd'] ]
 ball_positions_xyz = []
 ball_velocities_xyz = []
@@ -61,7 +58,7 @@ axes[2].set_xlabel('time (mins)')
 axes2[2].set_xlabel('time (mins)')
 
 
-# make a plot of a player 2's position (home team) over the first half
+# EXAMPLE: make a plot of a player 2's position (home team) over the first half
 # this is a bit clumsy
 fig,ax = vis.plot_pitch(match_tb) # plot pitch
 px = np.array( [f.pos_x for f in team1_players[2].frame_targets] )
@@ -70,7 +67,7 @@ t = np.array(  team1_players[2].frame_timestamps )
 flast = vis.find_framenum_at_timestamp(frames_tb,match_tb,2,0) # first frame of second half
 ax.plot( px[0:flast],py[0:flast],'r.')
 
-# make a timeseries plot of player 2's velocity (x and y components) and speed over the first half
+# EXAMPLE: make a timeseries plot of player 2's velocity (x and y components) and speed over the first half
 vx = np.array( [f.vx for f in team1_players[2].frame_targets] )
 vy = np.array( [f.vy for f in team1_players[2].frame_targets] )
 fig,ax = plt.subplots()
