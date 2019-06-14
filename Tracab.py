@@ -11,6 +11,27 @@ from bs4 import BeautifulSoup
 import datetime as dt
 import numpy as np
 import Tracking_Velocities as vel
+import xml.etree.ElementTree as ET
+
+def get_filename_dict_EPL():
+    raw_file_names = "/Users/laurieshaw/Documents/Football/Data/TrackingData/Tracab/RawData/raw_file_names.txt"
+    fname_dict = {}
+    with open(raw_file_names, "r") as rf:
+        for l in rf:
+            l = l.split(":")
+            #print l[0],l[1]
+            fname_dict[l[0]] = l[1].replace('\n','')
+    return fname_dict
+
+    
+def get_tracabdata_paths(fpath,fname,league='EPL'):
+    if league=='EPL':
+        fmetadata = fpath+'TracabMetadata'+fname
+        fdata = fpath+'TracabData'+fname
+    elif league=='DSL':
+        fmetadata = fpath+fname+"/"+fname+"_metadata.xml"
+        fdata = fpath+fname+"/"+fname+".dat"
+    return fmetadata,fdata
 
 def read_tracab_match(fmetadata):
     # get meta data
@@ -26,16 +47,31 @@ def read_tracab_match(fmetadata):
     match = tracab_match(match_attributes, period_attributes)
     return match
 
-def read_tracab_match_data(fpath,fname,during_match_only=True, verbose=False):
+def read_tracab_match_xml(fmetadata):
+    # get meta data
+    tree = ET.parse(fmetadata)
+    root = tree.getroot()
+    
+    match_attributes = root.getchildren()[0].attrib
+    
+    period_attributes = {}
+    temp = root.getchildren()[0].getchildren()
+    # navigate through the file to extract the info that we need
+    for t in temp:
+        if int( t.attrib['iEndFrame'] ) > int( t.attrib['iStartFrame'] ):
+            period_attributes[int(t.attrib['iId'])] = t.attrib
+    match = tracab_match(match_attributes, period_attributes)
+    return match
+
+def read_tracab_match_data(league,fpath,fname,team1_exclude=None,team0_exclude=None,during_match_only=True, verbose=False):
     # get match metadata
+    fmetadata,fdata = get_tracabdata_paths(fpath,fname,league)
     if verbose:
         print "Reading match metadata"
-    fmetadata = fpath+'TracabMetadata'+fname
     match = read_tracab_match(fmetadata)
     # now read in tracking data
     if verbose:
         print "Reading match tracking data"
-    fdata = fpath+'TracabData'+fname
     frames = []
     with open(fdata, "r") as fp:
         for f in fp: # go through line by line and break down data in individual players and the ball
@@ -71,13 +107,33 @@ def read_tracab_match_data(fpath,fname,during_match_only=True, verbose=False):
         match.period_attributes[1]['iStart'] = 0
         match.period_attributes[2]['iEnd'] = match.period_attributes[2]['iEnd'] - match.period_attributes[2]['iStart'] + match.period_attributes[1]['iEnd']
         match.period_attributes[2]['iStart'] = match.period_attributes[1]['iEnd']+1
-    # get player objects and calculate ball and player velocity 
+    # identify which way each team is shooting
+    set_parity(frames, match)
+    # get player objects and calculate ball and player & team com velocity 
     if verbose:
         print "Measuring velocities"
     team1_players, team0_players = get_players(frames)
+    if team1_exclude is None or team0_exclude is None:
+        team1_exclude,team0_exclude = get_goalkeeper_numbers(frames)
+    match.team1_exclude = team1_exclude
+    match.team0_exclude = team0_exclude
     vel.estimate_player_velocities(team1_players, team0_players, match, window=7, polyorder=1, maxspeed = 14)
     vel.estimate_ball_velocities(frames,match,window=5,polyorder=3,maxspeed=40)
+    vel.estimate_com_frames(frames,match,team1_exclude,team0_exclude)
     return frames, match, team1_players, team0_players
+
+def set_parity(frames, match):
+    # determines the direction in which the home team are shooting
+    # 1: right->left, -1: left->right
+    match.period_parity = {}
+    team1_x = np.mean([frames[0].team1_players[pid].pos_x for pid in frames[0].team1_jersey_nums_in_frame])
+    if team1_x > 0:
+        match.period_parity[1] = 1
+        match.period_parity[2] = -1
+    else:
+        match.period_parity[1] = -1
+        match.period_parity[2] = 1
+    return match
 
 def check_frames(frames):
     frameids = [frame.frameid for frame in frames]
@@ -87,6 +143,51 @@ def check_frames(frames):
         print "Check Fail: Missing frames"
     if nduplicates>0:
         print "Check Fail: Duplicate frames found"
+
+def get_goalkeeper_numbers(frames,verbose=True):
+    ids = frames[0].team1_jersey_nums_in_frame
+    x = []
+    for i in ids:
+        x.append( frames[0].team1_players[i].pos_x )
+    team1_exclude = [ ids[np.argmax( np.abs( x ) )] ]
+    # check to see if there is a goalkeeper sub
+    if team1_exclude[0] not in frames[-1].team1_jersey_nums_in_frame:
+        team1_exclude = team1_exclude + find_GK_substitution(frames,1,team1_exclude[0])
+    ids = frames[0].team0_jersey_nums_in_frame
+    x = []
+    for i in ids:
+        x.append( frames[0].team0_players[i].pos_x )
+    team0_exclude = [ ids[np.argmax( np.abs( x ) )] ]
+    if team0_exclude[0] not in frames[-1].team0_jersey_nums_in_frame:
+        team0_exclude = team0_exclude + find_GK_substitution(frames,0,team0_exclude[0])
+    if verbose:
+        print "home goalkeeper(s): ", team1_exclude
+        print "away goalkeeper(s): ", team0_exclude
+    return team1_exclude, team0_exclude
+
+def find_GK_substitution(frames,team,first_gk_id):
+    gk_id = first_gk_id
+    new_gk = []
+    plast = []
+    for frame in frames[::25]: # look every second
+        if frame.ball_status == 'Alive': # ball should be back in play
+            if team==1:
+                pnums = frame.team1_jersey_nums_in_frame
+            else:
+                pnums = frame.team0_jersey_nums_in_frame
+            if gk_id not in pnums:
+                sub = set(pnums) - set(plast)
+                print sub
+                if len(sub)!=1:
+                    print "No or more than one substitute"
+                    assert False
+                else:
+                    new_gk.append( int(list(sub)[0]) )
+                    gk_id = new_gk[-1]
+            plast = pnums
+    if len(new_gk) != 1:
+        print "goalkeeper sub problem", new_gk
+    return new_gk
 
 def get_players(frames):
     # first get all players that appear in at least one frame
@@ -139,6 +240,7 @@ def timestamp_frames(frames,match):
                 match.period_attributes[1]['iStart'] = i
             if frame.frameid==match.period_attributes[1]['iEndFrame']:
                 match.period_attributes[1]['iEnd'] = i
+                match.period_attributes[1]['iEndTime'] = frame.timestamp
         elif frame.frameid>=match.period_attributes[2]['iStartFrame']:
             frame.period = 2 # second half
             frame.timestamp = (frame.frameid-match.period_attributes[2]['iStartFrame'])*frame_period/60.
@@ -148,11 +250,50 @@ def timestamp_frames(frames,match):
                 match.period_attributes[2]['iStart'] = i
             if frame.frameid==match.period_attributes[2]['iEndFrame']:
                 match.period_attributes[2]['iEnd'] = i
+                match.period_attributes[2]['iEndTime'] = frame.timestamp
         else:
             frame.period = 3 # half time
             frame.timestamp = -1
     return frames, match
 
+def get_tracab_posessions(frames,match,min_pos_length=0):
+    posessions = []
+    for p in match.period_attributes.keys():
+        newpos = True
+        period = match.period_attributes[p]
+        for i in np.arange(period['iStart'],period['iEnd']+1):
+            if newpos:
+                if frames[i].ball_status == 'Alive':
+                    istart = i
+                    newpos = False
+            else:
+                if frames[i].ball_status != 'Alive' or frames[i].ball_team != frames[istart].ball_team :
+                    posessions.append( tracab_possesion(frames[istart],frames[i-1],istart,match) )
+                    newpos = True
+        if not newpos:
+            posessions.append( tracab_possesion(frames[istart],frames[i], istart,match) )
+    posessions = [pos for pos in posessions if pos.pos_duration>min_pos_length]
+    for pos in posessions:
+        pos.set_possession_type(frames,match)
+    return posessions
+
+def make_posession_plot(posessions):
+    home = [p.pos_duration for p in posessions if p.team=='H']
+    away = [p.pos_duration for p in posessions if p.team=='A']
+    fig,ax = plt.subplots()
+    xbins = np.arange(0,61,4)
+    print np.mean(home),np.median(home)
+    print np.sum(home)/60., np.sum(away)/60., np.sum(home)/60.+np.sum(away)/60.
+    ax.hist(away,xbins,color='w',edgecolor='blue', linewidth=1.2,alpha=1,linestyle='dashed',label='away')
+    ax.hist(home,xbins,color='r',alpha=0.3,label='home')
+    ax.set_ylim(0,75)
+    ax.plot([np.mean(home),np.mean(home)],[60,75],'r--')
+    ax.plot([np.median(home),np.median(home)],[60,75],'r:')
+    ax.plot([np.mean(away),np.mean(away)],[60,75],'b--')
+    ax.plot([np.median(away),np.median(away)],[60,75],'b:')
+    ax.set_xlabel('Possession duration (seconds)')
+    ax.legend(framealpha=0.2,frameon=False,fontsize=10,numpoints=1)
+    
 
 # match class
 class tracab_match(object):
@@ -247,6 +388,87 @@ class tracab_player(object):
         self.frame_timestamps.append( timestamp )
         self.frameids.append( frameid )
         self.frame_targets.append( tracab_target(self.teamID, None, self.jersey_num, 0.0, 0.0, 0.0 ) )
+        
+class tracab_possesion(object):
+    # a single period of continuous posession for a team
+    def __init__(self,fstart,fend,fstart_num,match):
+        self.period = fstart.period
+        self.pos_start_fid = fstart.frameid
+        self.pos_end_fid = fend.frameid
+        self.pos_start_time = fstart.timestamp
+        self.pos_end_time = fend.timestamp
+        self.pos_start_matchtime = self.pos_start_time + (self.period-1)*match.period_attributes[1]['iEndTime']
+        self.pos_end_matchtime = self.pos_end_time + (self.period-1)*match.period_attributes[1]['iEndTime']
+        self.pos_duration = 60*(self.pos_end_time - self.pos_start_time)
+        self.pos_Nframes = self.pos_end_fid - self.pos_start_fid
+        self.team = fstart.ball_team
+        self.pos_start_fnum = fstart_num
+        self.pos_end_fnum = fstart_num+self.pos_Nframes
+        self.prev_pos_type = None
+        # check if team changes during the possesion (suggesions a data error in ball status)
+        self.bad_possesion = ( set( fstart.team1_jersey_nums_in_frame ) != set( fend.team1_jersey_nums_in_frame ) ) or ( set( fstart.team0_jersey_nums_in_frame ) != set( fend.team0_jersey_nums_in_frame ) )
+        if self.bad_possesion:
+            print "bad posession: period %d, %1.2f to %1.2f" % (self.period, self.pos_start_time,self.pos_end_time)
+        assert self.team==fend.ball_team
+        assert fstart.period==fend.period
+        
+    def set_possession_type(self,frames_tb,match_tb):
+        frames = frames_tb[self.pos_start_fnum:self.pos_end_fnum+1]
+        if self.team=='H': # team shooting from right->left
+            # ball-based metric
+            #x = np.median( [f.ball_pos_x for f in frames] ) * match_tb.period_parity[self.period]
+            # team-based metric
+            x = np.median( [f.team1_x for f in frames] ) * match_tb.period_parity[self.period]
+        else: # team shooting from left->right
+            # ball-based metric
+            #x = np.median( [f.ball_pos_x for f in frames] ) * -1*match_tb.period_parity[self.period]
+            x = np.median( [f.team0_x for f in frames] ) * -1*match_tb.period_parity[self.period]
+        if x < 0:
+            self.pos_type = 'A'
+        elif x > match_tb.fPitchXSizeMeters*100/4.:
+            self.pos_type = 'D'
+        else:
+            self.pos_type = 'N' # neutral
+        self.set_possession_start(frames_tb)
+        
+    def set_possession_start(self,frames_tb):
+        if self.pos_start_fnum==0 or frames_tb[self.pos_start_fnum-1].ball_status=='Dead':
+            self.pos_start_type = 'DeadBall'
+        else:
+            self.pos_start_type = 'WinPosession'
+        
+        
+    def __repr__(self):
+        s = 'Team %s, Period %d, Type %s, start = %1.2f, end = %1.2f, length = %1.2f' % (self.team,self.period,self.pos_type,self.pos_start_time,self.pos_end_time,self.pos_duration)
+        return s
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         
     

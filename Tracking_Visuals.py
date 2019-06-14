@@ -11,6 +11,7 @@ import datetime as dt
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.animation as animation
+import graham_scan as gs
 
 def plot_pitch(match,fig=None,ax=None):
     # Plots a pitch. Pitch dimensions are often defined in yards, so need to convert distance units
@@ -125,8 +126,6 @@ def plot_frame(frame,match,alpha=1.0,include_player_velocities=True,include_ball
         team0[i,2] = frame.team0_players[j].vx/2. # Divide by 2 for aesthetic purposes only (otherwise quiver is too long)
         team0[i,3] = frame.team0_players[j].vy/2. # Divide by 2 for aesthetic purposes only (otherwise quiver is too long)
     team0 = team0[:i+1,:]
-    print team1
-    print team0
     pts1, = ax.plot( team1[:,0], team1[:,1], 'ro',linewidth=0,markeredgewidth=0,markersize=10,alpha=alpha)
     pts2, = ax.plot( team0[:,0], team0[:,1], 'bo',linewidth=0,markeredgewidth=0,markersize=10,alpha=alpha)
     ax.quiver( team1[:,0], team1[:,1], team1[:,2], team1[:,3],color='r',width=0.002,headlength=5,headwidth=3,scale=60)
@@ -167,14 +166,14 @@ def plot_frames(frames,match,pause=0.0,include_player_velocities=True,include_ba
         for i,j in enumerate( frame.team1_jersey_nums_in_frame ):
             team1[i,0] = frame.team1_players[j].pos_x
             team1[i,1] = frame.team1_players[j].pos_y
-            team1[i,2] = frame.team1_players[j].vx
-            team1[i,3] = frame.team1_players[j].vy
+            team1[i,2] = frame.team1_players[j].vx/4.
+            team1[i,3] = frame.team1_players[j].vy/4.
         team1 = team1[:i+1,:]
         for i,j in enumerate( frame.team0_jersey_nums_in_frame ):
             team0[i,0] = frame.team0_players[j].pos_x
             team0[i,1] = frame.team0_players[j].pos_y
-            team0[i,2] = frame.team0_players[j].vx/2. # Divide by 2 for aesthetic purposes only (otherwise quiver is too long)
-            team0[i,3] = frame.team0_players[j].vy/2. # Divide by 2 for aesthetic purposes only (otherwise quiver is too long)
+            team0[i,2] = frame.team0_players[j].vx/4. # Divide by 2 for aesthetic purposes only (otherwise quiver is too long)
+            team0[i,3] = frame.team0_players[j].vy/4. # Divide by 2 for aesthetic purposes only (otherwise quiver is too long)
         team0 = team0[:i+1,:]
         pts1, = ax.plot( team1[:,0], team1[:,1], 'ro',linewidth=0,markeredgewidth=0,markersize=10)
         pts2, = ax.plot( team0[:,0], team0[:,1], 'bo',linewidth=0,markeredgewidth=0,markersize=10)
@@ -195,13 +194,17 @@ def plot_frames(frames,match,pause=0.0,include_player_velocities=True,include_ba
         if not points_on:
             points_on = True
         
-def save_match_clip(frames,match,fpath,fname='clip_test',include_player_velocities=True):
+def save_match_clip(frames,match,fpath,fname='clip_test',include_player_velocities=True,hcol='r',acol='b',team1_exclude=[],team0_exclude=[],include_hulls=False,speed_fact=1.0,description=None):
     # saves a movie of frames with filename 'fname' in directory 'fpath'
     FFMpegWriter = animation.writers['ffmpeg']
     metadata = dict(title='Tracking Data', artist='Matplotlib', comment='test clip!')
-    writer = FFMpegWriter(fps=match.iFrameRateFps, metadata=metadata)
+    writer = FFMpegWriter(fps=match.iFrameRateFps*speed_fact, metadata=metadata)
     fig,ax = plot_pitch(match)
+    fig.suptitle(fname,fontsize=16,y=0.95)
+    if description is not None:
+        ax.text( -1*match.fPitchXSizeMeters/2. *100, -1*(match.fPitchYSizeMeters/2.+10)*100, description, fontsize=12, alpha=0.7)
     points_on = False
+    in_play_flag_on = False
     team1 = np.zeros((14,4))
     team0 = np.zeros((14,4))
     fname = fpath + fname + '.mp4'
@@ -215,31 +218,52 @@ def save_match_clip(frames,match,fpath,fname='clip_test',include_player_velociti
                 if include_player_velocities:
                     pts6.remove()
                     pts7.remove()
+                if include_hulls:
+                    pts8.remove()
+                    pts9.remove()
+            c = 0
             for i,j in enumerate( frame.team1_jersey_nums_in_frame ):
-                team1[i,0] = frame.team1_players[j].pos_x
-                team1[i,1] = frame.team1_players[j].pos_y
-                team1[i,2] = frame.team1_players[j].vx/2.
-                team1[i,3] = frame.team1_players[j].vy/2.
-            team1 = team1[:i+1,:]
+                if j not in team1_exclude:
+                    team1[c,0] = frame.team1_players[j].pos_x
+                    team1[c,1] = frame.team1_players[j].pos_y
+                    team1[c,2] = frame.team1_players[j].vx/2.
+                    team1[c,3] = frame.team1_players[j].vy/2.
+                    c += 1
+            team1 = team1[:c,:]
+            c = 0
             for i,j in enumerate( frame.team0_jersey_nums_in_frame ):
-                team0[i,0] = frame.team0_players[j].pos_x
-                team0[i,1] = frame.team0_players[j].pos_y
-                team0[i,2] = frame.team0_players[j].vx/2.
-                team0[i,3] = frame.team0_players[j].vy/2.
-            team0 = team0[:i+1,:]
-            pts1, = ax.plot( team1[:,0], team1[:,1], 'ro',linewidth=0,markeredgewidth=0,markersize=10)
-            pts2, = ax.plot( team0[:,0], team0[:,1], 'bo',linewidth=0,markeredgewidth=0,markersize=10)
+                if j not in team0_exclude:
+                    team0[c,0] = frame.team0_players[j].pos_x
+                    team0[c,1] = frame.team0_players[j].pos_y
+                    team0[c,2] = frame.team0_players[j].vx/2.
+                    team0[c,3] = frame.team0_players[j].vy/2.
+                    c += 1
+            team0 = team0[:c,:]
+            pts1, = ax.plot( team1[:,0], team1[:,1], hcol+'o',linewidth=0,markeredgewidth=0,markersize=10)
+            pts2, = ax.plot( team0[:,0], team0[:,1], acol+'o',linewidth=0,markeredgewidth=0,markersize=10)
             if include_player_velocities:       
-                pts6 = ax.quiver( team1[:,0], team1[:,1], team1[:,2], team1[:,3],color='r',width=0.002,headlength=5,headwidth=3,scale=80)
-                pts7 = ax.quiver( team0[:,0], team0[:,1], team0[:,2], team0[:,3],color='b',width=0.002,headlength=5,headwidth=3,scale=80)
-            if frame.ball and frame.ball_status=='Alive':
+                pts6 = ax.quiver( team1[:,0], team1[:,1], team1[:,2], team1[:,3],color=hcol,width=0.002,headlength=5,headwidth=3,scale=80)
+                pts7 = ax.quiver( team0[:,0], team0[:,1], team0[:,2], team0[:,3],color=acol,width=0.002,headlength=5,headwidth=3,scale=80)
+            if include_hulls:
+                hull1 = gs.graham_scan(team1[:,:2],enclose=True)
+                hull0 = gs.graham_scan(team0[:,:2],enclose=True)
+                pts8, = ax.fill(hull1[:,0], hull1[:,1], hcol, alpha=0.3)
+                pts9, = ax.fill(hull0[:,0], hull0[:,1], acol, alpha=0.3)
+            if frame.ball:
                 pts3, = ax.plot( frame.ball_pos_x, frame.ball_pos_y, marker='o',markerfacecolor='k',markeredgewidth=0,markersize=6*max(1,np.sqrt(frame.ball_pos_z/150.)))
+                if frame.ball_status!='Alive' and not in_play_flag_on:
+                    pts10 = ax.text(match.fPitchXSizeMeters*50-1500,match.fPitchYSizeMeters*50-250,'Play stopped', fontsize=14, color='r' )
+                    in_play_flag_on = True
+                elif frame.ball_status=='Alive' and in_play_flag_on:
+                    pts10.remove()
+                    in_play_flag_on = False
             else:
                 pts3, = ax.plot( 0, 0, marker='x',markerfacecolor='k',markeredgewidth=0,markersize=6) 
-            pts4 = ax.text(-150,match.fPitchYSizeMeters*50+40,frame.min+':'+ frame.sec.zfill(2), fontsize=14 )
+            pts4 = ax.text(-150,match.fPitchYSizeMeters*50+40,str((frame.period-1)*45+int(frame.min))+':'+ frame.sec.zfill(2), fontsize=14 )
             if not points_on:
                 points_on = True
             writer.grab_frame()
+    plt.close('all')
             
             
 def plot_player_timeseries(frames,match,team,jerseynum):

@@ -150,6 +150,102 @@ def estimate_player_velocities(team1_players, team0_players, match, _filter='Sav
             frame.speed_filter = np.sqrt( frame.vx**2 + frame.vy**2 )
             
             
-            
+def estimate_com_frames(frames_tb,match_tb,team1exclude,team0exclude):
+    for frame in frames_tb:
+        # home team
+        players = frame.team1_players
+        frame.team1_x = 0.0
+        frame.team1_y = 0.0
+        frame.team1_vx = 0.
+        frame.team1_vy = 0.
+        nv = 0
+        pids = players.keys()
+        pids = [pid for pid in pids if pids not in team1exclude]
+        for pids in pids:
+            frame.team1_x += players[pids].pos_x
+            frame.team1_y += players[pids].pos_y
+            frame.team1_vx += players[pids].vx
+            frame.team1_vy += players[pids].vy
+            nv += 1
+        if nv>0:
+            frame.team1_x = frame.team1_x / float(nv)
+            frame.team1_y = frame.team1_y / float(nv)
+            frame.team1_vx = frame.team1_vx / float(nv)
+            frame.team1_vy = frame.team1_vy / float(nv)
+        else:
+            frame.team1_x = np.nan
+            frame.team1_y = np.nan
+            frame.team1_vx = np.nan
+            frame.team1_vy = np.nan
+        # away team
+        players = frame.team0_players
+        frame.team0_x = 0.0
+        frame.team0_y = 0.0
+        frame.team0_vx = 0.
+        frame.team0_vy = 0.
+        nv = 0
+        pids = players.keys()
+        pids = [pid for pid in pids if pids not in team0exclude]
+        for pids in pids:
+            frame.team0_x += players[pids].pos_x
+            frame.team0_y += players[pids].pos_y
+            frame.team0_vx += players[pids].vx
+            frame.team0_vy += players[pids].vy
+            nv += 1
+        if nv>0:
+            frame.team0_x = frame.team0_x / float(nv)
+            frame.team0_y = frame.team0_y / float(nv)
+            frame.team0_vx = frame.team0_vx / float(nv)
+            frame.team0_vy = frame.team0_vy / float(nv)
+        else:
+            frame.team0_x = np.nan
+            frame.team0_y = np.nan
+            frame.team0_vx = np.nan
+            frame.team0_vy = np.nan
+    return frames_tb
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+        
             
             
