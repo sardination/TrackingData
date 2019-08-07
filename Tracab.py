@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jan 29 16:06:54 2019
+Created on Tue Jan 29 16:06:54 2019 
 
-Module for reading Tracab data and constructing frame and player objects
+Module for reading Tracab data and constructing frame and player objects, and calculating possessions
 
 @author: laurieshaw
 """
