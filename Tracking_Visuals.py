@@ -13,12 +13,12 @@ import numpy as np
 import matplotlib.animation as animation
 import graham_scan as gs
 
-def plot_pitch(match,fig=None,ax=None):
+def plot_pitch(match,fig=None,ax=None,lw=2,ps=20,no_center_spot=False):
     # Plots a pitch. Pitch dimensions are often defined in yards, so need to convert distance units
     # set up plot
     if fig is None:
         fig,ax = plt.subplots(figsize=(12,8))
-    lw=2
+    lw=lw
     lc = 'k'
     # ALL DIMENSIONS IN cm
     xborder = 300
@@ -41,7 +41,8 @@ def plot_pitch(match,fig=None,ax=None):
     centre_circle_radius = 10*cm_per_yard
     # half way line # center circle
     ax.plot([0,0],[-half_pitch_width,half_pitch_width],lc,linewidth=lw)
-    ax.scatter(0.0,0.0,marker='o',facecolor=lc,linewidth=0,s=20)
+    if not no_center_spot:
+        ax.scatter(0.0,0.0,marker='o',facecolor=lc,linewidth=0,s=ps)
     y = np.linspace(-1,1,50)*centre_circle_radius
     x = np.sqrt(centre_circle_radius**2-y**2)
     ax.plot(x,y,lc,linewidth=lw)
@@ -51,7 +52,7 @@ def plot_pitch(match,fig=None,ax=None):
         ax.plot([-half_pitch_length,half_pitch_length],[s*half_pitch_width,s*half_pitch_width],lc,linewidth=lw)
         ax.plot([s*half_pitch_length,s*half_pitch_length],[-half_pitch_width,half_pitch_width],lc,linewidth=lw)
         # goal posts & line
-        ax.plot( [s*half_pitch_length,s*half_pitch_length],[-goal_line_width/2.,goal_line_width/2.],lc+'s',markersize=6,linewidth=lw)
+        ax.plot( [s*half_pitch_length,s*half_pitch_length],[-goal_line_width/2.,goal_line_width/2.],lc+'s',markersize=6*ps/20.,linewidth=lw)
         # 6 yard box
         ax.plot([s*half_pitch_length,s*half_pitch_length-s*box_length],[box_width/2.,box_width/2.],lc,linewidth=lw)
         ax.plot([s*half_pitch_length,s*half_pitch_length-s*box_length],[-box_width/2.,-box_width/2.],lc,linewidth=lw)
@@ -61,7 +62,7 @@ def plot_pitch(match,fig=None,ax=None):
         ax.plot([s*half_pitch_length,s*half_pitch_length-s*area_length],[-area_width/2.,-area_width/2.],lc,linewidth=lw)
         ax.plot([s*half_pitch_length-s*area_length,s*half_pitch_length-s*area_length],[-area_width/2.,area_width/2.],lc,linewidth=lw)
         # penalty spot
-        ax.scatter(s*half_pitch_length-s*penalty_spot,0.0,marker='o',facecolor=lc,linewidth=0,s=20)
+        ax.scatter(s*half_pitch_length-s*penalty_spot,0.0,marker='o',facecolor=lc,linewidth=0,s=ps)
         # corner flags
         y = np.linspace(0,1,50)*corner_radius
         x = np.sqrt(corner_radius**2-y**2)
