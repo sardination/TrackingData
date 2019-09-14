@@ -2,7 +2,7 @@
 """
 Created on Thu Mar  7 15:44:50 2019
 
-Module for measuring ball and player velocity (and acceleration, eventually) from tracking data 
+Module for measuring ball and player velocity (and acceleration, eventually) from tracking data
 
 @author: laurieshaw
 """
@@ -11,7 +11,7 @@ import numpy as np
 import scipy.signal as signal
 import scipy.stats as stats
 from scipy.signal import butter, lfilter, freqz
-import cPickle as pickle
+import pickle
 
 def smooth_ball_position(frames,match,_filter='Savitzky-Golay',window=5,polyorder=3):
     # For smoothing ball positions. Not used.
@@ -29,7 +29,7 @@ def smooth_ball_position(frames,match,_filter='Savitzky-Golay',window=5,polyorde
             frame.ball_pos_z_smooth = np.nan
             if frame.ball:
                 mask.append(count)
-                r[count,:] = np.array( [frame.ball_pos_x,frame.ball_pos_y,frame.ball_pos_z] ) 
+                r[count,:] = np.array( [frame.ball_pos_x,frame.ball_pos_y,frame.ball_pos_z] )
                 count += 1
         r_raw = r.copy()
         r[:,0] = signal.savgol_filter(r[:,0],window_length=window,polyorder=polyorder)
@@ -41,7 +41,7 @@ def smooth_ball_position(frames,match,_filter='Savitzky-Golay',window=5,polyorde
                 frames[istart+i].ball_pos_y_smooth = r[i,1]
                 frames[istart+i].ball_pos_z_smooth = r[i,2]
     return frames, r, r_raw
-    
+
 
 
 def estimate_ball_velocities(frames,match,_filter='Savitzky-Golay',window=5,polyorder=3,maxspeed=40):
@@ -148,8 +148,8 @@ def estimate_player_velocities(team1_players, team0_players, match, _filter='Sav
             frame.vx = dr[i,0]
             frame.vy = dr[i,1]
             frame.speed_filter = np.sqrt( frame.vx**2 + frame.vy**2 )
-            
-            
+
+
 def estimate_com_frames(frames_tb,match_tb,team1exclude,team0exclude):
     for frame in frames_tb:
         # home team
@@ -203,49 +203,48 @@ def estimate_com_frames(frames_tb,match_tb,team1exclude,team0exclude):
             frame.team0_vx = np.nan
             frame.team0_vy = np.nan
     return frames_tb
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 
-        
-            
-            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

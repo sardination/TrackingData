@@ -17,7 +17,7 @@ from scipy.linalg import sqrtm
 import copy as copy
 import itertools
 import data_utils as utils
-import cPickle as pickle
+import pickle
 import scipy.stats as stats
 
 
@@ -94,7 +94,7 @@ def calc_formation_by_period(period_length,min_period_length,posessions,frames_t
         attacking_formations.append(form_Att)
         defensive_formations.append(form_Def)
     return attacking_formations,defensive_formations
-    
+
 
 def calc_posession_lattice(posessions,frames_tb,match_tb,subsample):
     # parity=1, home team is attacking right->left
@@ -128,7 +128,7 @@ def calc_posession_lattice(posessions,frames_tb,match_tb,subsample):
     form_Att.plot_formation(factor=100,offsets=offsets,figax=(fig1,ax1),lt='ro')
     return form_Def,form_Att
 
-    
+
 def calc_offset_between_formations(form_Def,form_Att,calc,parity=1):
     if calc=='com':
         assert len(form_Def.lattices) == len(form_Att.lattices)
@@ -146,7 +146,7 @@ def calc_offset_between_formations(form_Def,form_Att,calc,parity=1):
             yoffset = 0.
         else:
             xoffset = form_Def.bounds[1] - form_Att.bounds[1]
-            yoffset = 0.    
+            yoffset = 0.
     return xoffset,yoffset
 
 
@@ -204,7 +204,7 @@ def fancy_dendrogram(*args, **kwargs):
             plt.axhline(y=max_d, c='k')
     return ddata
 
-    
+
 def generate_formation_from_sub_cluster(ctypes,all_formations,clusternums,Amatrix, match_tb, method='ward', squeeze=[0.7,0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5]):
     '''
     rather than crudely averaging together formations in the same sub-cluster, we should build them hierarchically. 'cluster nums' is the clusters identified in the dendogram
@@ -236,7 +236,7 @@ def generate_formation_from_sub_cluster(ctypes,all_formations,clusternums,Amatri
             x = cluster_formation.nodes[pid].x
             y = cluster_formation.nodes[pid].y
             cluster_formation.nodes_cluster[pid] = np.array( [x,y] )
-        
+
     for link in L:
         # now work our way up the dendogram, combining formations as we go
         f1 = cluster_formations[int(link[0])] # first formation/cluster
@@ -282,7 +282,7 @@ def get_superliga_clusters(Amatrix,Smatrix,all_formations,formation_stats,match_
     # generates clusters for latest presentation
     ctypes =  make_dendogram( Amatrix,formation_stats,t=80,method='ward')
     clusternums = [[1],[2],[3],[4,5],[6,7,8],[9],[10],[11],[12],[13,14],[15,16],[17,18,19],[20],[21],[22],[23],[24],[25],[26],[27,28]]
-    nclusters = len(clusternums)   
+    nclusters = len(clusternums)
     print nclusters
     clustered_formations = []
     for cluster in clusternums:
@@ -294,15 +294,15 @@ def get_superliga_clusters(Amatrix,Smatrix,all_formations,formation_stats,match_
 def save_clustered_formations(clustered_formations):
     fname = "/Users/laurieshaw/Documents/Football/Data/TrackingData/Tracab/clustered_formations_WMs.pkl"
     with open(fname, 'wb') as output:
-        pickle.dump(clustered_formations, output, pickle.HIGHEST_PROTOCOL)    
-        
+        pickle.dump(clustered_formations, output, pickle.HIGHEST_PROTOCOL)
+
 def load_clustered_formations():
     fname = "/Users/laurieshaw/Documents/Football/Data/TrackingData/Tracab/clustered_formations_WMs.pkl"
     with open(fname, 'rb') as input:
-        clustered_formations = pickle.load(input) 
-    return clustered_formations    
+        clustered_formations = pickle.load(input)
+    return clustered_formations
 
-    
+
 def Hungarian_Cost(F1,F2,match_tb,metric='L2',squeeze=[1.],plot=False):
     # calculates cost of player assignments between any two roles (L1 or L2 norm) in each formation
     # this process tells us how to match a player in one formation observation to a player in another to minimize the overal formation comparison cost
@@ -347,7 +347,7 @@ def Hungarian_Cost(F1,F2,match_tb,metric='L2',squeeze=[1.],plot=False):
             pid1 = pids1[i]
             pid2 = pmatch[i]
             ax.plot( [100*F1.nodes[pid1].x,squeeze_min*100*F2.nodes[pid2].x] , [100*F1.nodes[pid1].y,squeeze_min*100*F2.nodes[pid2].y], 'k' )
-    return cost_min, pids1, pmatch, squeeze_min 
+    return cost_min, pids1, pmatch, squeeze_min
 
 def Cost_Metric(F1,F2,pid1,pid2,metric='L2',s=1.):
     if metric=='L1':
@@ -377,7 +377,7 @@ def Cost_Metric(F1,F2,pid1,pid2,metric='L2',s=1.):
         cov2 = F2.formation_distributions[pid2][1]*s*s
         return Wasserstein_Metric(mu1,mu2,cov1,cov2,method='fast')
     elif metric=='LL':
-        # returns negative log-likelihood 
+        # returns negative log-likelihood
         cov1 = F1.formation_distributions[pid1][1]
         if F2.is_cluster_template:
             mu2 = F2.cluster_formation_distributions[pid2][0]*s
@@ -439,16 +439,16 @@ def KL_Divergence(mu1,mu2,cov1,cov2):
     d = np.linalg.matrix_rank(cov1)
     invcov2 = np.linalg.inv(cov2)
     mudif = mu1 - mu2
-    KL = 0.5* ( np.log(np.linalg.det(cov2)/np.linalg.det(cov1)) -d + np.trace( np.matmul(invcov2,cov1) ) +  np.dot(mudif, np.matmul(invcov2,mudif) ) ) 
+    KL = 0.5* ( np.log(np.linalg.det(cov2)/np.linalg.det(cov1)) -d + np.trace( np.matmul(invcov2,cov1) ) +  np.dot(mudif, np.matmul(invcov2,mudif) ) )
     return KL
-    
+
 class formation(object):
     # defines a single observation of a formation from an aggregated possession window
     def __init__(self,team):
         self.lattices = []
         self.team=team # team in posession
         self.is_cluster_template = False # until set True
-        
+
     def calc_player_deviations_within_formation(self,match,nexclude=0):
         # first need to find formation centre of mass within each lattice frame
         # do this by calculating com having iteratively excluded nexclude players to minimize cost
@@ -469,14 +469,14 @@ class formation(object):
                 ecom = costs[0][1]
                 lattice.formation_xcom = ecom[0]
                 lattice.formation_ycom = ecom[1]
-            
+
             # basically a correction to the com frame in the lattice
             com_shift_x = lattice.xcom - lattice.formation_xcom
             com_shift_y = lattice.ycom - lattice.formation_ycom
             ymax = match.fPitchYSizeMeters / 2.
             xmax = match.fPitchXSizeMeters / 2.
             for pid in self.pids:
-                # don't let positions go off edge of field. 
+                # don't let positions go off edge of field.
                 # need to think about this - is it an issue?
                 dev_x = lattice.nodes[pid].x+com_shift_x
                 #dev_x = np.sign(dev_x) * np.min( [xmax,np.abs(dev_x)] )
@@ -486,29 +486,29 @@ class formation(object):
                 self.formation_deviations_x[pid] = np.concatenate((self.formation_deviations_x[pid],[dev_x]))
                 self.formation_deviations_y[pid] = np.concatenate((self.formation_deviations_y[pid],[dev_y]))
         # finally, calc bivariate distributions for players
-        self.calc_player_distributions_within_formation()      
-                
+        self.calc_player_distributions_within_formation()
+
     def calc_player_distributions_within_formation(self):
         self.formation_distributions = {}
         for pid in self.pids:
             mu = np.array([ np.mean(self.formation_deviations_x[pid]), np.mean(self.formation_deviations_y[pid]) ])
             cov = np.cov( self.formation_deviations_x[pid],self.formation_deviations_y[pid] )
             self.formation_distributions[pid] = (mu,cov)
-            
+
     def calc_player_distributions_within_cluster_formation(self):
         self.cluster_formation_distributions = {}
         for pid in self.pids:
             mu = np.mean( self.nodes_cluster[pid],axis=0 )
             cov = np.cov( self.nodes_cluster[pid].T)
             self.cluster_formation_distributions[pid] = (mu,cov)
-                
+
     def create_formation_deviations(self):
         self.formation_deviations_x = {}
         self.formation_deviations_y = {}
         for pid in self.pids:
             self.formation_deviations_x[pid] = np.array([])
             self.formation_deviations_y[pid] = np.array([])
-            
+
     def lattice_formation_cost(self,lattice,ecom,pid_exclude):
         dr2 = 0
         frame_dif_x = lattice.xcom - ecom[0]
@@ -529,10 +529,10 @@ class formation(object):
                 print set( lattice.pids ), self.pids
                 assert False
         self.lattices.append(lattice)
-        
+
     def delete_lattices(self):
         self.lattices = []
-    
+
     def assign_neighbour_position(self,pid,n_neighbours):
         for i in range(n_neighbours):
             pid_neighbour = self.nodes[pid].nearest_neighours[i][0]
@@ -610,16 +610,16 @@ class formation(object):
         self.calc_formation_bounds()
         self.calc_player_deviations_within_formation(match,nexclude=nexclude)
         # get average centre of mass of team throughout lattices
-        self.calc_lattice_average_com()  
+        self.calc_lattice_average_com()
         # calculate start and end time of observations
         self.t_start = self.lattices[0].timestamp
         self.t_end = self.lattices[-1].timestamp
-    
+
     def add_posession_data(self,posessions, period_start):
         offset = (period_start-1.0)*45.0
         self.team_pos_to_t_start = np.sum( [p.pos_duration for p in posessions if p.team==self.team and p.pos_start_matchtime<=(self.t_start+offset)] )
         self.team_pos_after_t_start = np.sum( [p.pos_duration for p in posessions if p.team==self.team and p.pos_start_matchtime>(self.t_start+offset)] )
-    
+
     def calc_formation_bounds(self):
         x = []
         y = []
@@ -627,15 +627,15 @@ class formation(object):
             x.append( self.nodes[pid].x )
             y.append( self.nodes[pid].y )
         self.bounds = (min(x),max(x),min(y),max(y))
-    
+
     def plot_formation(self,factor=1.0,offsets=(0,0),figax=None,labels=False,elipses=False,lt='ko',nsigma=1):
         if figax is None:
             fig,ax = plt.subplots()
         else:
             fig,ax = figax
         for pid in self.pids:
-            x = factor*( self.nodes[pid].x )+offsets[0] 
-            y = factor*( self.nodes[pid].y )+offsets[1] 
+            x = factor*( self.nodes[pid].x )+offsets[0]
+            y = factor*( self.nodes[pid].y )+offsets[1]
             mu = self.formation_distributions[pid][0]*factor
             cov = self.formation_distributions[pid][1]*factor*factor
             #ax.plot(x,y,lt,MarkerSize=10)
@@ -646,15 +646,15 @@ class formation(object):
                 ax.plot(mu[0],mu[1],lt,MarkerSize=10)
                 utils.plot_bivariate_normal(mu,cov,(fig,ax),nsigma=nsigma,lt=lt)
 
-    
+
     def plot_cluster_formation(self,factor=1.0,offsets=(0,0),figax=None,points=False,elipses=False,lt='ko',nsigma=1):
         if figax is None:
             fig,ax = plt.subplots()
         else:
             fig,ax = figax
         for pid in self.pids:
-            x = factor*( self.nodes[pid].x )+offsets[0] 
-            y = factor*( self.nodes[pid].y )+offsets[1] 
+            x = factor*( self.nodes[pid].x )+offsets[0]
+            y = factor*( self.nodes[pid].y )+offsets[1]
             mu = self.cluster_formation_distributions[pid][0]*factor
             cov = self.cluster_formation_distributions[pid][1]*factor*factor
             if points:
@@ -663,13 +663,13 @@ class formation(object):
                 utils.plot_bivariate_normal(mu,cov,(fig,ax),nsigma=nsigma)
             ax.plot(x,y,lt,MarkerSize=10)
             ax.plot(mu[0],mu[1],'kd',MarkerSize=10)
-            
+
     def get_xydata(self):
         xydata = []
         for p in self.pids:
             xydata.append([self.nodes[p].x,self.nodes[p].y])
         return np.array(xydata)
-       
+
 
 class lattice(object):
     # contains a lattice of player positions. Can be from a single frame, or an aggregated posession window
@@ -678,7 +678,7 @@ class lattice(object):
         self.period_sign = self.pos_type * team_parity
         self.players = players
         self.pids = [p for p in self.players.keys() if p not in exclude]
-        self.timestamp = timestamp 
+        self.timestamp = timestamp
         self.exclude = exclude
         self.nodes = {}
         self.formation_offset_nodes = {}
@@ -686,18 +686,18 @@ class lattice(object):
         self.calc_com()
         self.calc_edges()
         self.to_com()
-        
+
     def add_nodes(self):
         # player positions in formation
         for p in self.pids:
             px = self.players[p].pos_x/100.*self.period_sign
             py = self.players[p].pos_y/100.*self.period_sign
             self.nodes[p] = node(p,px,py)
-            
+
     def add_formation_offset_nodes(self,pid,dx,dy):
         self.formation_offset_nodes[pid] = node(pid,dx,dy)
-         
-            
+
+
     def calc_edges(self):
         # calculate vectors between all the nodes
         for p in self.pids:
@@ -706,7 +706,7 @@ class lattice(object):
                     dx = self.nodes[n].x - self.nodes[p].x
                     dy = self.nodes[n].y - self.nodes[p].y
                     self.nodes[p].add_neighbour(self.nodes[n].pid,dx,dy)
-    
+
     def calc_com(self):
         self.xcom = 0.
         self.ycom = 0.
@@ -715,7 +715,7 @@ class lattice(object):
             self.ycom += self.nodes[p].y
         self.xcom = self.xcom/float(len(self.pids))
         self.ycom = self.ycom/float(len(self.pids))
-        
+
     def get_com(self,exclude=[]):
         xcom = 0.
         ycom = 0.
@@ -726,23 +726,23 @@ class lattice(object):
         xcom = xcom/float(len(self.pids)-len(exclude))
         ycom = ycom/float(len(self.pids)-len(exclude))
         return xcom,ycom
-     
+
     def from_com(self):
         for p in self.pids:
             self.nodes[p].x += self.xcom
             self.nodes[p].y += self.ycom
-     
+
     def to_com(self):
         for p in self.pids:
             self.nodes[p].x -= self.xcom
             self.nodes[p].y -= self.ycom
-        
+
     def get_xydata(self):
         xydata = []
         for p in self.pids:
             xydata.append([self.nodes[p].x,self.nodes[p].y])
         return np.array(xydata)
-    
+
 
 class node(object):
     # this is a single player position in a frame or formation
@@ -751,24 +751,23 @@ class node(object):
         self.neighbours = {}
         self.x = px
         self.y = py
-        
+
     def has_position(self):
-        return ~np.isnan(self.x) and ~np.isnan(self.y)        
-        
+        return ~np.isnan(self.x) and ~np.isnan(self.y)
+
     def add_neighbour(self,pid,dx,dy):
         dist = np.sqrt(dx*dx+dy*dy)
         self.neighbours[pid] = (pid,dx,dy,dist)
-        
+
     def sort_neighbours(self):
         self.nearest_neighours = [self.neighbours[p] for p in self.neighbours.keys()]
         self.nearest_neighours = sorted(self.nearest_neighours,key = lambda x: x[3])
-     
+
     def calc_local_density(self,N):
         # average distance to N nearest neighbours
         #self.local_density = np.sum([x[3] for x in self.nearest_neighours[:N]])/float(N)
         self.local_density = self.nearest_neighours[N-1][3]
         #print self.local_density, self.nearest_neighours[:N]
-     
+
     def __repr__(self):
         print self.pid
-        
