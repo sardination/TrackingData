@@ -22,7 +22,7 @@ def movingave_adaptive(x,window):
     non_nan = ~np.isnan(x)
     xcut = x[non_nan]
     if window>len(xcut):
-        print "window too large, or too many nans"
+        print("window too large, or too many nans")
         return
     smoothed = np.convolve(xcut,np.ones(window)/float(window),'same')
     steps = int(window/2.)

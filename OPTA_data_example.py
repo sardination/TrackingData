@@ -54,7 +54,8 @@ Aalborg Match IDs
 '''
 
 team= 'Aalborg BK'
-match_id = 984602
+# match_id = 984602
+match_id = 984455
 fname = str(match_id)
 
 match_OPTA = opta.read_OPTA_f7(fpath,fname)

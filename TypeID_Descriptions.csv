@@ -1,13 +1,13 @@
 Event_id,Short,Long
-1,Pass,"Any pass attempted from one player to another – free kicks, corners, throw ins, goal kicks and goal assists"
+1,Pass,"Any pass attempted from one player to another - free kicks, corners, throw ins, goal kicks and goal assists"
 2,Offside Pass,Attempted pass made to a player who is in an offside position
-3,Take On,Attempted dribble past an opponent (excluding when qualifier 211 is present as this is ‘overrun’ and is not always a duel event)
+3,Take On,Attempted dribble past an opponent (excluding when qualifier 211 is present as this is 'overrun' and is not always a duel event)
 4,Foul,This event is shown when a foul is committed resulting in a free kick
 5,Out,Shown each time the ball goes out of play for a throw-in or goal kick
 6,Corner Awarded,Ball goes out of play for a corner kick
 7,Tackle,"Tackle = dispossesses an opponent of the ball - Outcome 1 = win & retain possession or out of play, 0 = win tackle but not possession"
 8,Interception,When a player intercepts any pass event between opposition players and prevents the ball reaching its target. Cannot be a clearance.
-9,Turnover,Unforced error / loss of possession - i.e. bad control of ball – NO LONGER USED (Replaced with Unsuccessful Touch + Overrun)
+9,Turnover,Unforced error / loss of possession - i.e. bad control of ball - NO LONGER USED (Replaced with Unsuccessful Touch + Overrun)
 10,Save,Goalkeeper event; saving a shot on goal. Can also be an outfield player event with qualifier 94 for blocked shot
 11,Claim,Goalkeeper event; catching a crossed ball
 12,Clearance,Player under pressure hits the ball clear of the defensive zone or/and out of play
@@ -36,9 +36,9 @@ Event_id,Short,Long
 39,Temp_Attempt,Shot on goal has occurred but is pending additional detail qualifiers from Opta. Will change to event 15.
 40,Formation change,Team alters its formation
 41,Punch,Goalkeeper event; ball is punched clear
-42,Good Skill,A player shows a good piece of skill on the ball – such as a step over or turn on the ball – NO LONGER USED
-43,Deleted event,Event has been deleted – the event will remain as it was originally with the same ID but will be resent with the type altered to 43.
-44,Aerial,Aerial duel – 50/50 when the ball is in the air – outcome will represent whether the duel was won or lost
+42,Good Skill,A player shows a good piece of skill on the ball - such as a step over or turn on the ball - NO LONGER USED
+43,Deleted event,Event has been deleted - the event will remain as it was originally with the same ID but will be resent with the type altered to 43.
+44,Aerial,Aerial duel - 50/50 when the ball is in the air - outcome will represent whether the duel was won or lost
 45,Challenge,When a player fails to win the ball as an opponent successfully dribbles past them
 47,Rescinded card,This can occur post match if the referee rescinds a card he has awarded
 49,Ball recovery,Team wins the possession of the ball and successfully keeps possession for at least two passes or an attacking play
@@ -53,7 +53,7 @@ Event_id,Short,Long
 58,Penalty faced,Goalkeeper event; penalty by opposition team
 59,Keeper Sweeper,When keeper comes off his line and/or out of his box to clear the ball
 60,Chance missed,Used when a player does not actually make a shot on goal but was in a good position to score and only just missed receiving a pass
-61,Ball touch,Used when a player makes a bad touch on the ball and loses possession. Outcome 1 – ball simply hit the player unintentionally. Outcome 0 – Player unsuccessfully controlled the ball.
+61,Ball touch,Used when a player makes a bad touch on the ball and loses possession. Outcome 1 - ball simply hit the player unintentionally. Outcome 0 - Player unsuccessfully controlled the ball.
 63,Temp_Save,An event indicating a save has occurred but without full details. Event 10 will follow shortly afterwards with full details.
 64,Resume,Match resumes on a new date after being abandoned mid game.
-65,Contentious referee decision,Any major talking point or error made by the referee – decision will be assigned to the relevant team
+65,Contentious referee decision,Any major talking point or error made by the referee - decision will be assigned to the relevant team

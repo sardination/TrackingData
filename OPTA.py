@@ -53,18 +53,20 @@ def add_tracab_attributes(match_OPTA,match_tb):
 
 def get_OPTA_id_descriptions():
     # reads in descriptions of OPTAs and type and qualifier descriptors
-    typeids_path = "/Users/laurieshaw/Documents/Football/Data/OPTA/TypeID_Descriptions.csv"
+    # typeids_path = "/Users/laurieshaw/Documents/Football/Data/OPTA/TypeID_Descriptions.csv"
+    typeids_path = "TypeID_Descriptions.csv"
     typeids = {}
     with open(typeids_path, 'rU') as csvfile:
         refreader = csv.reader(csvfile, dialect = 'excel')
-        refreader.next() # get rid of header
+        refreader.__next__() # get rid of header
         for row in refreader: # first row is header
             typeids[int(row[0])] = row[1]
-    qualids_path = "/Users/laurieshaw/Documents/Football/Data/OPTA/QualID_Descriptions.csv"
+    # qualids_path = "/Users/laurieshaw/Documents/Football/Data/OPTA/QualID_Descriptions.csv"
+    qualids_path = "QualID_Descriptions.csv"
     qualids = {}
     with open(qualids_path, 'rU') as csvfile:
         refreader = csv.reader(csvfile, dialect = 'excel')
-        refreader.next() # get rid of header
+        refreader.__next__() # get rid of header
         for row in refreader: # first row is header
             qualids[int(row[0])] = row[1]
     return typeids,qualids

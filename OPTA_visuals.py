@@ -57,6 +57,7 @@ def xG_calibration_plots(matches, caley_type = [1,2,3,4,5,6], bins = np.linspace
     ax.errorbar(binned_xG_caley2,pgoal_caley2,2*std)
     ax.plot(binned_xG_caley,pgoal_caley,'r')
     ax.plot([0,1],[0,1],'k--')
+    plt.waitforbuttonpress(0)
 
 
 def plot_all_shots(match_OPTA,plotly=False):
@@ -96,9 +97,11 @@ def plot_all_shots(match_OPTA,plotly=False):
         plotly_fig['layout']['xaxis'].update({'ticks':'','showticklabels':False})
         plotly_fig['layout']['yaxis'].update({'ticks':'','showticklabels':False})
         #url = py.plot(plotly_fig, filename = 'Aalborg-match-analysis')
+        plt.waitforbuttonpress(0)
         return plotly_fig
     else:
         plt.title( match_string, fontsize=16, y=1.0 )
+        plt.waitforbuttonpress(0)
         return fig,ax
 
 def make_expG_timeline(match_OPTA):
@@ -140,12 +143,14 @@ def make_expG_timeline(match_OPTA):
     ax.plot(homegoal_times,homegoal_xG_totals,'ro')
     ax.plot(awaygoal_times,awaygoal_xG_totals,'bo')
     # add goal scorers
-    home_scorers = ['Goal (' + s.player_name +')' for s in homeshots if s.is_goal]
-    away_scorers = ['Goal (' + s.player_name +')' for s in awayshots if s.is_goal]
+    home_scorers = ['Goal (' + str(s.player_name) +')' for s in homeshots if s.is_goal]
+    away_scorers = ['Goal (' + str(s.player_name) +')' for s in awayshots if s.is_goal]
     if len(home_scorers)>0:
         [ax.text(t-0.2,x,n,horizontalalignment='right',fontsize=8,color='r') for t,x,n in zip(homegoal_times,homegoal_xG_totals,home_scorers)]
     if len(away_scorers)>0:
         [ax.text(t-0.2,x,n,horizontalalignment='right',fontsize=8,color='b') for t,x,n in zip(awaygoal_times,awaygoal_xG_totals,away_scorers)]
+
+    plt.waitforbuttonpress(0)
 
 
 def plot_defensive_actions(team,all_matches,include_tackles=True,include_intercept=True):
@@ -175,6 +180,7 @@ def plot_defensive_actions(team,all_matches,include_tackles=True,include_interce
             count +=1
     #match_string = '%s %d (%1.1f) vs (%1.1f) %d %s' % (match_OPTA.hometeam.teamname,match_OPTA.homegoals,home_xG,away_xG,match_OPTA.awaygoals,match_OPTA.awayteam.teamname)
     #plt.title( match_string, fontsize=16, y=1.0 )
+    plt.waitforbuttonpress(0)
 
 def Generate_Tracab_Chance_Videos(match_OPTA, match_tb, frames_tb):
     t_init_buf = 0.5
