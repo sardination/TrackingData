@@ -8,6 +8,7 @@ Created on Mon May  6 12:50:25 2019
 import functools
 import numpy as np
 
+
 @functools.total_ordering
 class Point:
     """A point class for use in the Graham Scan."""
@@ -31,11 +32,13 @@ class Point:
 
     def __str__(self):
         """Returns a string containing instance information."""
-        f = lambda n: int(n) if n.is_integer() else n
+        def f(n): return int(n) if n.is_integer() else n
         return str(self.key) + ',\t' + str(f(self.x)) + ',\t' + str(f(self.y))
 
-    __lt__ = lambda self, other: self.y < other.y if (self.x == other.x) else self.x < other.x
-    __eq__ = lambda self, other: self.x == other.x and self.y == other.y
+    def __lt__(self, other): return self.y < other.y if (
+        self.x == other.x) else self.x < other.x
+
+    def __eq__(self, other): return self.x == other.x and self.y == other.y
 
 
 def read_input_file(file):
@@ -50,11 +53,12 @@ def read_input_file(file):
 
     return point_array
 
+
 def construct_point_array(xydata):
     ''' xy data contains two columns: x coords, y coords
         each row is a new points '''
     point_array = []
-    for key,xy in enumerate(xydata):
+    for key, xy in enumerate(xydata):
         point_array.append(Point(key, float(xy[0]), float(xy[1])))
     return point_array
 
@@ -81,17 +85,18 @@ def sort_points(point_array):
     point_array = point_array[:1] + sorted(point_array[1:], key=slope)
     return point_array
 
+
 def poly_area(xy_hull):
-    x = xy_hull[:,0]
-    y = xy_hull[:,1]
-    return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
+    x = xy_hull[:, 0]
+    y = xy_hull[:, 1]
+    return 0.5*np.abs(np.dot(x, np.roll(y, 1))-np.dot(y, np.roll(x, 1)))
 
 
-def graham_scan(xydata,enclose=False):
+def graham_scan(xydata, enclose=False):
     """Takes an array of points to be scanned.
     Returns an array of points that make up the convex hull surrounding the points passed in in point_array.
     """
-    
+
     point_array = construct_point_array(xydata)
 
     def cross_product_orientation(a, b, c):
@@ -100,9 +105,9 @@ def graham_scan(xydata,enclose=False):
         """
 
         return (b.get_y() - a.get_y()) * \
-                (c.get_x() - a.get_x()) - \
-                (b.get_x() - a.get_x()) * \
-                (c.get_y() - a.get_y())
+            (c.get_x() - a.get_x()) - \
+            (b.get_x() - a.get_x()) * \
+            (c.get_y() - a.get_y())
 
     # convex_hull is a stack of points beginning with the leftmost point.
     convex_hull = []
@@ -117,10 +122,5 @@ def graham_scan(xydata,enclose=False):
         # repeat the first point at the end
         convex_hull.append(convex_hull[0])
     # return numpy array in same format as input data
-    xy_hull = np.array([[c.x,c.y] for c in convex_hull])
+    xy_hull = np.array([[c.x, c.y] for c in convex_hull])
     return xy_hull
-
-
-    
-    
-    

@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+import OPTA_visuals as ovis
+import OPTA as opta
+import pickle
+import matplotlib.pyplot as plt
+import numpy as np
 """
 Created on Tue Jul  2 11:19:49 2019
 
@@ -12,16 +17,10 @@ Created on Thu Jun 13 21:33:43 2019
 @author: laurieshaw
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-import pickle
-import OPTA as opta
-import OPTA_visuals as ovis
-
 
 # fpath = "/Users/laurieshaw/Documents/Football/Data/TrackingData/Tracab/SuperLiga/All/"
 fpath = "../OPTA/"
-#fpath='/n/home03/lshaw/Tracking/Tracab/SuperLiga/' # path to directory of Tracab data
+# fpath='/n/home03/lshaw/Tracking/Tracab/SuperLiga/' # path to directory of Tracab data
 
 '''
 Aalborg Match IDs
@@ -53,14 +52,14 @@ Aalborg Match IDs
 984628	AalborgBK_vs_AGFAarhus
 '''
 
-team= 'Aalborg BK'
+team = 'Aalborg BK'
 # match_id = 984602
 match_id = 984455
 fname = str(match_id)
 
-match_OPTA = opta.read_OPTA_f7(fpath,fname)
-match_OPTA = opta.read_OPTA_f24(fpath,fname,match_OPTA)
+match_OPTA = opta.read_OPTA_f7(fpath, fname)
+match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
 
-ovis.plot_all_shots(match_OPTA,plotly=False)
+ovis.plot_all_shots(match_OPTA, plotly=False)
 ovis.make_expG_timeline(match_OPTA)
-#ovis.plot_defensive_actions(team,[match_OPTA],include_tackles=True,include_intercept=True)
+# ovis.plot_defensive_actions(team,[match_OPTA],include_tackles=True,include_intercept=True)
