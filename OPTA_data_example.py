@@ -60,6 +60,9 @@ fname = str(match_id)
 match_OPTA = opta.read_OPTA_f7(fpath, fname)
 match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
 
-ovis.plot_all_shots(match_OPTA, plotly=False)
-ovis.make_expG_timeline(match_OPTA)
-# ovis.plot_defensive_actions(team,[match_OPTA],include_tackles=True,include_intercept=True)
+# ovis.plot_all_shots(match_OPTA, plotly=False)
+# ovis.make_expG_timeline(match_OPTA)
+# # ovis.plot_defensive_actions(team,[match_OPTA],include_tackles=True,include_intercept=True)
+
+# ovis.plot_all_passes(match_OPTA)
+ovis.plot_passing_network(match_OPTA)

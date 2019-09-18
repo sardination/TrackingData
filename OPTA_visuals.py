@@ -30,17 +30,152 @@ def get_all_matches():
     return matches
 
 
-# def plot_passes(match_OPTA):
-#     fig, ax = vis.plot_pitch(match_OPTA)
-#     home_passes = [e for e in match_OPTA.hometeam.events if e.is_pass]
-#     away_passes = [e for e in match_OPTA.awayteam.events if e.is_pass]
-#     xfact = match_OPTA.fPitchXSizeMeters*100
-#     yfact = match_OPTA.fPitchYSizeMeters*100
-#     descriptors = {}
-#     count = 0
+def plot_passing_network(match_OPTA):
+    # TODO: account for subs
+    fig, ax = vis.plot_pitch(match_OPTA)
+    # some passes may be completed and followed by a shot instead of another pass
+    home_events_raw = [e for e in match_OPTA.hometeam.events if e.is_pass or e.is_shot]
+    away_events_raw = [e for e in match_OPTA.awayteam.events if e.is_pass or e.is_shot]
+    xfact = match_OPTA.fPitchXSizeMeters*100
+    yfact = match_OPTA.fPitchYSizeMeters*100
 
-#     for p in home_passes:
-#         descriptors[str(count)] = p.
+    home_passes = []
+    away_passes = []
+
+    home_player_location_sums = {} # sum of coords over time to later be averaged [x,y]
+    home_player_loc_nums = {}
+    away_player_location_sums = {}
+    away_player_loc_nums = {}
+
+    last_pass = None
+    for p in home_events_raw:
+        if home_player_location_sums.get(p.player_id):
+            if p.is_shot:
+                home_player_location_sums[p.player_id][0] += p.x
+                home_player_location_sums[p.player_id][1] += p.y
+            else:
+                home_player_location_sums[p.player_id][0] += p.pass_start[0]
+                home_player_location_sums[p.player_id][1] += p.pass_start[1]
+                # new_pass = {'source': p.player_id}
+            home_player_loc_nums[p.player_id] += 1
+        else:
+            if p.is_shot:
+                home_player_location_sums[p.player_id] = [p.x, p.y]
+            else:
+                home_player_location_sums[p.player_id] = [p.pass_start[0], p.pass_start[1]]
+            home_player_loc_nums[p.player_id] = 1
+
+        if last_pass is not None: # if the last pass was completed and this is the next action
+            # home_passes[-1]['dest'] = p.player_id
+            if match_OPTA.hometeam.player_map[last_pass.player_id].pass_destinations.get(p.player_id):
+                match_OPTA.hometeam.player_map[last_pass.player_id].pass_destinations[p.player_id] += 1
+            else:
+                match_OPTA.hometeam.player_map[last_pass.player_id].pass_destinations[p.player_id] = 1
+
+            home_player_location_sums[p.player_id][0] += last_pass.pass_end[0]
+            home_player_location_sums[p.player_id][1] += last_pass.pass_end[1]
+            home_player_loc_nums[p.player_id] += 1
+
+        # home_passes.append(new_pass)
+
+        if p.is_pass and p.outcome == 1:
+            last_pass = p
+        else:
+            last_pass = None
+
+    home_player_locations = {}
+
+    for player_id, location_sum in home_player_location_sums.items():
+        home_player_locations[player_id] = [
+            location_sum[0] / home_player_loc_nums[player_id],
+            location_sum[1] / home_player_loc_nums[player_id]
+        ]
+
+        match_OPTA.hometeam.player_map[player_id].x = home_player_locations[player_id][0]
+        match_OPTA.hometeam.player_map[player_id].y = home_player_locations[player_id][1]
+
+        ax.plot(
+            home_player_locations[player_id][0]*xfact,
+            home_player_locations[player_id][1]*yfact,
+            'ro',
+            markersize=20,
+            label=match_OPTA.hometeam.player_map[player_id]
+        )
+        ax.annotate(
+            match_OPTA.hometeam.player_map[player_id].lastname,
+            (home_player_locations[player_id][0]*xfact,
+            home_player_locations[player_id][1]*yfact)
+        )
+
+    for player in match_OPTA.hometeam.players:
+        for dest_player_id, num_passes in player.pass_destinations.items():
+            dest_player = match_OPTA.hometeam.player_map[dest_player_id]
+            ax.arrow(
+                player.x*xfact,
+                player.y*yfact,
+                (dest_player.x - player.x)*xfact,
+                (dest_player.y - player.y)*yfact,
+                color='r',
+                length_includes_head=True,
+                # head_width=0.08*xfact,
+                # head_length=0.00002*yfact,
+                width = num_passes * 10
+            )
+
+    match_string = '%s %d vs %d %s' % (
+        match_OPTA.hometeam.teamname,
+        match_OPTA.homegoals,
+        match_OPTA.awaygoals,
+        match_OPTA.awayteam.teamname
+    )
+    plt.title(match_string, fontsize=16, y=1.0)
+    plt.waitforbuttonpress(0)
+
+    return fig, ax
+
+
+def plot_all_passes(match_OPTA):
+    fig, ax = vis.plot_pitch(match_OPTA)
+    home_passes = [e for e in match_OPTA.hometeam.events if e.is_pass]
+    away_passes = [e for e in match_OPTA.awayteam.events if e.is_pass]
+    xfact = match_OPTA.fPitchXSizeMeters*100
+    yfact = match_OPTA.fPitchYSizeMeters*100
+
+    for p in home_passes:
+        ax.arrow(
+            p.pass_start[0]*xfact,
+            p.pass_start[1]*yfact,
+            (p.pass_end[0] - p.pass_start[0])*xfact,
+            (p.pass_end[1] - p.pass_start[1])*yfact,
+            color='b',
+            length_includes_head=True,
+            head_width=0.08*xfact,
+            head_length=0.00002*yfact
+        )
+
+    for p in away_passes:
+        ax.arrow(
+            p.pass_start[0]*xfact,
+            p.pass_start[1]*yfact,
+            (p.pass_end[0] - p.pass_start[0])*xfact,
+            (p.pass_end[1] - p.pass_start[1])*yfact,
+            color='r',
+            length_includes_head=True,
+            head_width=0.08*xfact,
+            head_length=0.00002*yfact
+        )
+
+    match_string = '%s %d vs %d %s' % (
+        match_OPTA.hometeam.teamname,
+        match_OPTA.homegoals,
+        match_OPTA.awaygoals,
+        match_OPTA.awayteam.teamname
+    )
+
+    plt.title(match_string, fontsize=16, y=1.0)
+    plt.waitforbuttonpress(0)
+
+    return fig, ax
 
 
 def xG_calibration_plots(matches, caley_type=[1, 2, 3, 4, 5, 6], bins=np.linspace(0, 1, 11)):

@@ -179,6 +179,13 @@ class OPTAplayer(object):
         self.position = player['Position']
         self.id = int(player['uID'][1:])
 
+        # player position
+        # TODO: set default coordinates based on position
+        self.x = 0
+        self.y = 0
+
+        self.pass_destinations = {}
+
     def __repr__(self):
         return "%s %s (%s)" % (self.firstname, self.lastname, self.position)
 
@@ -226,6 +233,8 @@ class OPTAevent(object):
 
         # pass logic
         self.is_pass = self.type_id == 1
+        if self.is_pass:
+            self.get_pass_descriptor(match_OPTA)
 
     def set_event_description(self, typeids):
         if self.type_id in typeids.keys():
@@ -472,8 +481,23 @@ class OPTAevent(object):
                     sub_info += ', '
         self.shot_descriptor += sub_info + self.description + '\nShot_id: ' + self.shot_id
 
-    def get_pass_descriptor(self, match_OPTA):
-        pass
+    def get_pass_descriptor(self, match_OPTA, max_char_line=40):
+        self.pass_id = self.home_away_team + str(self.event_id)
+        self.pass_descriptor = "%s (%s), %d min %d sec" % (self.player_name, self.team_name, self.min, self.sec)
+
+        self.pass_start = (self.x, self.y)
+        pass_end_x = None
+        pass_end_y = None
+
+        sub_info = ""
+        for q in self.qualifiers:
+            if q.qual_id == 140: # pass end X
+                pass_end_x = q.value/100.-0.5
+            elif q.qual_id == 141: # pass end Y
+                pass_end_y = q.value/100.-0.5
+            # TODO: add descriptor information for other wanted qualifiers
+
+        self.pass_end = (pass_end_x, pass_end_y)
 
     def __repr__(self):
         if self.is_shot:
