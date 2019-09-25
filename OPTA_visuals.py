@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import chart_studio.plotly as py
 import chart_studio.tools as tls
 import Tracking_Visuals as vis
+import data_utils as utils
 
 
 def get_all_matches():
@@ -31,7 +32,15 @@ def get_all_matches():
 
 
 def plot_passing_network(match_OPTA):
-    # TODO: account for subs
+    """
+    Plot the passing networks of the entire match, displaying player movement as bivariate normal
+    ellipses and arrow weights directly corresponding to the number of passes executed
+
+    TODO:
+    - account for subs
+    - allow different weighting schema
+    """
+
     fig, ax = vis.plot_pitch(match_OPTA)
     # some passes may be completed and followed by a shot instead of another pass
     home_events_raw = [e for e in match_OPTA.hometeam.events if e.is_pass or e.is_shot]
@@ -39,82 +48,91 @@ def plot_passing_network(match_OPTA):
     xfact = match_OPTA.fPitchXSizeMeters*100
     yfact = match_OPTA.fPitchYSizeMeters*100
 
-    home_passes = []
-    away_passes = []
-
-    home_player_location_sums = {} # sum of coords over time to later be averaged [x,y]
-    home_player_loc_nums = {}
-    away_player_location_sums = {}
-    away_player_loc_nums = {}
+    # dictionary of np arrays of (x,y) locations
+    home_player_locations = {}
+    away_player_locations = {}
 
     last_pass = None
     for p in home_events_raw:
-        if home_player_location_sums.get(p.player_id):
+        # Record player location of pass/shot originator
+        if home_player_locations.get(p.player_id) is not None:
             if p.is_shot:
-                home_player_location_sums[p.player_id][0] += p.x
-                home_player_location_sums[p.player_id][1] += p.y
+                home_player_locations[p.player_id] = np.append(
+                    home_player_locations[p.player_id],
+                    [[p.x, p.y]],
+                    axis=0
+                )
             else:
-                home_player_location_sums[p.player_id][0] += p.pass_start[0]
-                home_player_location_sums[p.player_id][1] += p.pass_start[1]
-                # new_pass = {'source': p.player_id}
-            home_player_loc_nums[p.player_id] += 1
+                home_player_locations[p.player_id] = np.append(
+                    home_player_locations[p.player_id],
+                    [[p.pass_start[0], p.pass_start[1]]],
+                    axis=0
+                )
         else:
             if p.is_shot:
-                home_player_location_sums[p.player_id] = [p.x, p.y]
+                home_player_locations[p.player_id] = np.array([[p.x, p.y]])
             else:
-                home_player_location_sums[p.player_id] = [p.pass_start[0], p.pass_start[1]]
-            home_player_loc_nums[p.player_id] = 1
+                home_player_locations[p.player_id] = np.array([[p.pass_start[0], p.pass_start[1]]])
 
-        if last_pass is not None: # if the last pass was completed and this is the next action
-            # home_passes[-1]['dest'] = p.player_id
+        # Record player location of pass target if the last pass was completed and this is the next action
+        if last_pass is not None:
             if match_OPTA.hometeam.player_map[last_pass.player_id].pass_destinations.get(p.player_id):
                 match_OPTA.hometeam.player_map[last_pass.player_id].pass_destinations[p.player_id] += 1
             else:
                 match_OPTA.hometeam.player_map[last_pass.player_id].pass_destinations[p.player_id] = 1
 
-            home_player_location_sums[p.player_id][0] += last_pass.pass_end[0]
-            home_player_location_sums[p.player_id][1] += last_pass.pass_end[1]
-            home_player_loc_nums[p.player_id] += 1
-
-        # home_passes.append(new_pass)
+            home_player_locations[p.player_id] = np.append(
+                home_player_locations[p.player_id],
+                [[last_pass.pass_end[0], last_pass.pass_end[1]]],
+                axis=0
+            )
 
         if p.is_pass and p.outcome == 1:
             last_pass = p
         else:
             last_pass = None
 
-    home_player_locations = {}
+    for player in match_OPTA.hometeam.players:
+        player_id = player.id
+        location_sum = home_player_locations.get(player_id)
+        if location_sum is None:
+            continue
 
-    for player_id, location_sum in home_player_location_sums.items():
-        home_player_locations[player_id] = [
-            location_sum[0] / home_player_loc_nums[player_id],
-            location_sum[1] / home_player_loc_nums[player_id]
-        ]
+        home_player_locations[player_id] = home_player_locations[player_id] * [xfact, yfact]
 
-        match_OPTA.hometeam.player_map[player_id].x = home_player_locations[player_id][0]
-        match_OPTA.hometeam.player_map[player_id].y = home_player_locations[player_id][1]
+        # Calculate mean and covariance of player locations and graph bivariate normal ellipse of player position
+        player_loc_mean = np.mean(
+            home_player_locations[player_id],
+            axis=0
+        )
+        player.x = player_loc_mean[0]
+        player.y = player_loc_mean[1]
 
-        ax.plot(
-            home_player_locations[player_id][0]*xfact,
-            home_player_locations[player_id][1]*yfact,
-            'ro',
-            markersize=20,
-            label=match_OPTA.hometeam.player_map[player_id]
+        player_loc_cov = np.cov(
+            home_player_locations[player_id][:,0],
+            home_player_locations[player_id][:,1]
+        )
+
+        shrink_factor = 0.25
+        fig, ax, pt = utils.plot_bivariate_normal(
+            player_loc_mean,
+            player_loc_cov * shrink_factor**2,
+            figax=(fig, ax)
         )
         ax.annotate(
             match_OPTA.hometeam.player_map[player_id].lastname,
-            (home_player_locations[player_id][0]*xfact,
-            home_player_locations[player_id][1]*yfact)
+            (player_loc_mean[0], player_loc_mean[1])
         )
 
+    # Plot network of passes with arrows
     for player in match_OPTA.hometeam.players:
         for dest_player_id, num_passes in player.pass_destinations.items():
             dest_player = match_OPTA.hometeam.player_map[dest_player_id]
             ax.arrow(
-                player.x*xfact,
-                player.y*yfact,
-                (dest_player.x - player.x)*xfact,
-                (dest_player.y - player.y)*yfact,
+                player.x,
+                player.y,
+                (dest_player.x - player.x),
+                (dest_player.y - player.y),
                 color='r',
                 length_includes_head=True,
                 # head_width=0.08*xfact,

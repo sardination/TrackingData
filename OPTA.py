@@ -184,6 +184,7 @@ class OPTAplayer(object):
         self.x = 0
         self.y = 0
 
+        # how many passes were made to each player
         self.pass_destinations = {}
 
     def __repr__(self):
