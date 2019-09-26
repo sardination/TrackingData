@@ -8,6 +8,7 @@ Created on Tue Aug 13 17:08:14 2019
 import OPTA as opta
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import chart_studio.plotly as py
 import chart_studio.tools as tls
 import Tracking_Visuals as vis
@@ -39,6 +40,12 @@ def plot_passing_network(match_OPTA):
     TODO:
     - account for subs
     - allow different weighting schema
+
+    Args:
+        match_OPTA (OPTAmatch): match OPTA information
+
+    Kwargs:
+
     """
 
     fig, ax = vis.plot_pitch(match_OPTA)
@@ -128,17 +135,26 @@ def plot_passing_network(match_OPTA):
     for player in match_OPTA.hometeam.players:
         for dest_player_id, num_passes in player.pass_destinations.items():
             dest_player = match_OPTA.hometeam.player_map[dest_player_id]
-            ax.arrow(
-                player.x,
-                player.y,
-                (dest_player.x - player.x),
-                (dest_player.y - player.y),
+            # ax.arrow(
+            #     player.x,
+            #     player.y,
+            #     (dest_player.x - player.x),
+            #     (dest_player.y - player.y),
+            #     color='r',
+            #     length_includes_head=True,
+            #     # head_width=0.08*xfact,
+            #     # head_length=0.00002*yfact,
+            #     width = num_passes * 10
+            # )
+            arrow = patches.FancyArrowPatch(
+                (player.x, player.y),
+                (dest_player.x, dest_player.y),
+                connectionstyle="arc3,rad=.1",
                 color='r',
-                length_includes_head=True,
-                # head_width=0.08*xfact,
-                # head_length=0.00002*yfact,
-                width = num_passes * 10
+                arrowstyle='Simple,tail_width=0.5,head_width=4,head_length=8',
+                linewidth=num_passes,
             )
+            ax.add_artist(arrow)
 
     match_string = '%s %d vs %d %s' % (
         match_OPTA.hometeam.teamname,
