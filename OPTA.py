@@ -237,6 +237,13 @@ class OPTAevent(object):
         if self.is_pass:
             self.get_pass_descriptor(match_OPTA)
 
+        # substitution logic
+        self.is_substitution = self.type_id == 18 or self.type_id == 19
+        if self.type_id == 18:
+            self.sub_direction = "on"
+        elif self.type_id == 19:
+            self.sub_direction = "off"
+
     def set_event_description(self, typeids):
         if self.type_id in typeids.keys():
             self.description = typeids[self.type_id]

@@ -50,8 +50,8 @@ def plot_passing_network(match_OPTA):
 
     fig, ax = vis.plot_pitch(match_OPTA)
     # some passes may be completed and followed by a shot instead of another pass
-    home_events_raw = [e for e in match_OPTA.hometeam.events if e.is_pass or e.is_shot]
-    away_events_raw = [e for e in match_OPTA.awayteam.events if e.is_pass or e.is_shot]
+    home_events_raw = [e for e in match_OPTA.hometeam.events if e.is_pass or e.is_shot or e.is_substitution]
+    away_events_raw = [e for e in match_OPTA.awayteam.events if e.is_pass or e.is_shot or e.is_substitution]
     xfact = match_OPTA.fPitchXSizeMeters*100
     yfact = match_OPTA.fPitchYSizeMeters*100
 
@@ -60,42 +60,47 @@ def plot_passing_network(match_OPTA):
     away_player_locations = {}
 
     last_pass = None
-    for p in home_events_raw:
+    exclude_players = []
+    for e in home_events_raw:
+        if e.is_substitution:
+            if e.sub_direction == "on":
+                exclude_players.append(e.player_id)
+            continue
         # Record player location of pass/shot originator
-        if home_player_locations.get(p.player_id) is not None:
-            if p.is_shot:
-                home_player_locations[p.player_id] = np.append(
-                    home_player_locations[p.player_id],
-                    [[p.x, p.y]],
+        if home_player_locations.get(e.player_id) is not None:
+            if e.is_shot:
+                home_player_locations[e.player_id] = np.append(
+                    home_player_locations[e.player_id],
+                    [[e.x, e.y]],
                     axis=0
                 )
             else:
-                home_player_locations[p.player_id] = np.append(
-                    home_player_locations[p.player_id],
-                    [[p.pass_start[0], p.pass_start[1]]],
+                home_player_locations[e.player_id] = np.append(
+                    home_player_locations[e.player_id],
+                    [[e.pass_start[0], e.pass_start[1]]],
                     axis=0
                 )
         else:
-            if p.is_shot:
-                home_player_locations[p.player_id] = np.array([[p.x, p.y]])
+            if e.is_shot:
+                home_player_locations[e.player_id] = np.array([[e.x, e.y]])
             else:
-                home_player_locations[p.player_id] = np.array([[p.pass_start[0], p.pass_start[1]]])
+                home_player_locations[e.player_id] = np.array([[e.pass_start[0], e.pass_start[1]]])
 
         # Record player location of pass target if the last pass was completed and this is the next action
         if last_pass is not None:
-            if match_OPTA.hometeam.player_map[last_pass.player_id].pass_destinations.get(p.player_id):
-                match_OPTA.hometeam.player_map[last_pass.player_id].pass_destinations[p.player_id] += 1
+            if match_OPTA.hometeam.player_map[last_pass.player_id].pass_destinations.get(e.player_id):
+                match_OPTA.hometeam.player_map[last_pass.player_id].pass_destinations[e.player_id] += 1
             else:
-                match_OPTA.hometeam.player_map[last_pass.player_id].pass_destinations[p.player_id] = 1
+                match_OPTA.hometeam.player_map[last_pass.player_id].pass_destinations[e.player_id] = 1
 
-            home_player_locations[p.player_id] = np.append(
-                home_player_locations[p.player_id],
+            home_player_locations[e.player_id] = np.append(
+                home_player_locations[e.player_id],
                 [[last_pass.pass_end[0], last_pass.pass_end[1]]],
                 axis=0
             )
 
-        if p.is_pass and p.outcome == 1:
-            last_pass = p
+        if e.is_pass and e.outcome == 1:
+            last_pass = e
         else:
             last_pass = None
 
@@ -133,6 +138,8 @@ def plot_passing_network(match_OPTA):
 
     # Plot network of passes with arrows
     for player in match_OPTA.hometeam.players:
+        if player in exclude_players:
+            continue
         for dest_player_id, num_passes in player.pass_destinations.items():
             dest_player = match_OPTA.hometeam.player_map[dest_player_id]
             # ax.arrow(
@@ -146,6 +153,8 @@ def plot_passing_network(match_OPTA):
             #     # head_length=0.00002*yfact,
             #     width = num_passes * 10
             # )
+            if dest_player in exclude_players:
+                continue
             arrow = patches.FancyArrowPatch(
                 (player.x, player.y),
                 (dest_player.x, dest_player.y),
