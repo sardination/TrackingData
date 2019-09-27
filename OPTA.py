@@ -239,10 +239,11 @@ class OPTAevent(object):
 
         # substitution logic
         self.is_substitution = self.type_id == 18 or self.type_id == 19
-        if self.type_id == 18:
-            self.sub_direction = "on"
-        elif self.type_id == 19:
-            self.sub_direction = "off"
+        if self.is_substitution:
+            if self.type_id == 18:
+                self.sub_direction = "on"
+            elif self.type_id == 19:
+                self.sub_direction = "off"
 
     def set_event_description(self, typeids):
         if self.type_id in typeids.keys():
@@ -506,6 +507,13 @@ class OPTAevent(object):
             # TODO: add descriptor information for other wanted qualifiers
 
         self.pass_end = (pass_end_x, pass_end_y)
+
+        # record pass types
+        self.pass_types = []
+        if self.pass_end[0] > 0:
+            self.pass_types.append("offensive")
+        else:
+            self.pass_types.append("defensive")
 
     def __repr__(self):
         if self.is_shot:

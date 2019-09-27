@@ -32,7 +32,7 @@ def get_all_matches():
     return matches
 
 
-def plot_passing_network(match_OPTA):
+def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=True):
     """
     Plot the passing networks of the entire match, displaying player movement as bivariate normal
     ellipses and arrow weights directly corresponding to the number of passes executed
@@ -45,7 +45,15 @@ def plot_passing_network(match_OPTA):
         match_OPTA (OPTAmatch): match OPTA information
 
     Kwargs:
-
+        weighting (string): type of pass network. Choices include:
+            regular - all passes included and weighted
+            offensive - weight offensive passes but not defensive
+            defensive - weight defensive passes but not offensive
+            lateral - weight passes with minimal progression in either direction on the field
+            forwards - weight passes in the offensive direction
+            backwards - weight passes in the defensive direction
+        relative_positioning (bool): if True, player positions on the diagram should be relative
+            in terms of formation rather than exact position average
     """
 
     fig, ax = vis.plot_pitch(match_OPTA)
@@ -58,6 +66,12 @@ def plot_passing_network(match_OPTA):
     # dictionary of np arrays of (x,y) locations
     home_player_locations = {}
     away_player_locations = {}
+
+    # dictionary of player ids to player objects
+    home_player_objects = {p.id: p for p in match_OPTA.hometeam.players}
+
+    # dictionary of the sum of outgoing pass vectors from each player to each other player
+    home_player_vectors = {}
 
     last_pass = None
     exclude_players = []
@@ -99,26 +113,86 @@ def plot_passing_network(match_OPTA):
                 axis=0
             )
 
+            # sum outoing vectors for every player
+            if home_player_vectors.get(last_pass.player_id) is None:
+                home_player_vectors[last_pass.player_id] = {}
+            if home_player_vectors[last_pass.player_id].get(e.player_id) is None:
+                home_player_vectors[last_pass.player_id][e.player_id] = np.array([0.0, 0.0])
+            home_player_vectors[last_pass.player_id][e.player_id] += np.array(last_pass.pass_end) - np.array(last_pass.pass_start)
+
         if e.is_pass and e.outcome == 1:
             last_pass = e
         else:
             last_pass = None
 
-    for player in match_OPTA.hometeam.players:
-        player_id = player.id
-        location_sum = home_player_locations.get(player_id)
-        if location_sum is None:
-            continue
-
+    # factor locations to plot positions
+    for player_id, _ in home_player_locations.items():
         home_player_locations[player_id] = home_player_locations[player_id] * [xfact, yfact]
 
-        # Calculate mean and covariance of player locations and graph bivariate normal ellipse of player position
+    mapped_players = [p for p in match_OPTA.hometeam.players if home_player_locations.get(p.id) is not None and p.id not in exclude_players]
+    outgoing_passes = {p.id: sum([d_num for p_id, d_num in p.pass_destinations.items()]) for p in mapped_players}
+
+    if relative_positioning:
+        # sort players by outgoing passes and get max outgoing pass player
+        top_passers = sorted(
+            [p for p in mapped_players],
+            key=lambda x:-outgoing_passes[x.id]
+        )
+        top_passer = top_passers[0]
         player_loc_mean = np.mean(
-            home_player_locations[player_id],
+            home_player_locations[top_passer.id],
             axis=0
         )
-        player.x = player_loc_mean[0]
-        player.y = player_loc_mean[1]
+        top_passer.x = player_loc_mean[0]
+        top_passer.y = player_loc_mean[1]
+
+        while len(top_passers) > 1:
+            top_passers.remove(top_passer)
+
+            top_receivers = [p_id for p_id, _ in sorted(
+                [(r,n) for r,n in top_passer.pass_destinations.items()],
+                key=lambda x:-x[1]
+            )]
+
+            next_passer = None
+
+            for receiver_id in top_receivers:
+                receiver = home_player_objects[receiver_id]
+                if receiver_id not in exclude_players and receiver in top_passers:
+                    next_passer = receiver
+                    break
+
+            if next_passer is not None:
+                average_pass_vector = np.array(home_player_vectors[top_passer.id][next_passer.id]) / top_passer.pass_destinations[next_passer.id]
+                next_passer.x = top_passer.x + average_pass_vector[0] * xfact
+                next_passer.y = top_passer.y + average_pass_vector[1] * yfact
+            else:
+                next_passer = top_passers[0]
+                player_loc_mean = np.mean(
+                    home_player_locations[next_passer.id],
+                    axis=0
+                )
+                next_passer.x = player_loc_mean[0]
+                next_passer.y = player_loc_mean[1]
+
+            top_passer = next_passer
+
+
+    for player in match_OPTA.hometeam.players:
+        player_id = player.id
+        if player not in mapped_players:
+            continue
+
+        # Calculate mean and covariance of player locations and graph bivariate normal ellipse of player position
+
+        # if not using relative positioning vectors, set player x and y values using means
+        if not relative_positioning:
+            player_loc_mean = np.mean(
+                home_player_locations[player_id],
+                axis=0
+            )
+            player.x = player_loc_mean[0]
+            player.y = player_loc_mean[1]
 
         player_loc_cov = np.cov(
             home_player_locations[player_id][:,0],
@@ -127,13 +201,13 @@ def plot_passing_network(match_OPTA):
 
         shrink_factor = 0.25
         fig, ax, pt = utils.plot_bivariate_normal(
-            player_loc_mean,
+            [player.x, player.y],
             player_loc_cov * shrink_factor**2,
             figax=(fig, ax)
         )
         ax.annotate(
             match_OPTA.hometeam.player_map[player_id].lastname,
-            (player_loc_mean[0], player_loc_mean[1])
+            (player.x, player.y)
         )
 
     # Plot network of passes with arrows
