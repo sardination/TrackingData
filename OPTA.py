@@ -241,9 +241,9 @@ class OPTAevent(object):
         self.is_substitution = self.type_id == 18 or self.type_id == 19
         if self.is_substitution:
             if self.type_id == 18:
-                self.sub_direction = "on"
-            elif self.type_id == 19:
                 self.sub_direction = "off"
+            elif self.type_id == 19:
+                self.sub_direction = "on"
 
     def set_event_description(self, typeids):
         if self.type_id in typeids.keys():

@@ -32,7 +32,7 @@ def get_all_matches():
     return matches
 
 
-def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=True):
+def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=True, display_passes=True):
     """
     Plot the passing networks of the entire match, displaying player movement as bivariate normal
     ellipses and arrow weights directly corresponding to the number of passes executed
@@ -79,16 +79,18 @@ def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=T
         if e.is_substitution:
             if e.sub_direction == "on":
                 exclude_players.append(e.player_id)
+                print(home_player_objects[e.player_id])
             continue
         # Record player location of pass/shot originator
         if home_player_locations.get(e.player_id) is not None:
             if e.is_shot:
-                home_player_locations[e.player_id] = np.append(
-                    home_player_locations[e.player_id],
-                    [[e.x, e.y]],
-                    axis=0
-                )
-            else:
+                if weighting != "defensive":
+                    home_player_locations[e.player_id] = np.append(
+                        home_player_locations[e.player_id],
+                        [[e.x, e.y]],
+                        axis=0
+                    )
+            elif weighting == "regular" or weighting in e.pass_types:
                 home_player_locations[e.player_id] = np.append(
                     home_player_locations[e.player_id],
                     [[e.pass_start[0], e.pass_start[1]]],
@@ -96,8 +98,9 @@ def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=T
                 )
         else:
             if e.is_shot:
-                home_player_locations[e.player_id] = np.array([[e.x, e.y]])
-            else:
+                if weighting != "defensive":
+                    home_player_locations[e.player_id] = np.array([[e.x, e.y]])
+            elif weighting == "regular" or weighting in e.pass_types:
                 home_player_locations[e.player_id] = np.array([[e.pass_start[0], e.pass_start[1]]])
 
         # Record player location of pass target if the last pass was completed and this is the next action
@@ -107,20 +110,23 @@ def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=T
             else:
                 match_OPTA.hometeam.player_map[last_pass.player_id].pass_destinations[e.player_id] = 1
 
-            home_player_locations[e.player_id] = np.append(
-                home_player_locations[e.player_id],
-                [[last_pass.pass_end[0], last_pass.pass_end[1]]],
-                axis=0
-            )
+            if home_player_locations.get(e.player_id) is not None:
+                home_player_locations[e.player_id] = np.append(
+                    home_player_locations[e.player_id],
+                    [[last_pass.pass_end[0], last_pass.pass_end[1]]],
+                    axis=0
+                )
+            else:
+                home_player_locations[e.player_id] = np.array([[last_pass.pass_end[0], last_pass.pass_end[1]]])
 
-            # sum outoing vectors for every player
+            # sum outgoing vectors for every player
             if home_player_vectors.get(last_pass.player_id) is None:
                 home_player_vectors[last_pass.player_id] = {}
             if home_player_vectors[last_pass.player_id].get(e.player_id) is None:
                 home_player_vectors[last_pass.player_id][e.player_id] = np.array([0.0, 0.0])
             home_player_vectors[last_pass.player_id][e.player_id] += np.array(last_pass.pass_end) - np.array(last_pass.pass_start)
 
-        if e.is_pass and e.outcome == 1:
+        if e.is_pass and e.outcome == 1 and (weighting == "regular" or weighting in e.pass_types):
             last_pass = e
         else:
             last_pass = None
@@ -131,12 +137,17 @@ def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=T
 
     mapped_players = [p for p in match_OPTA.hometeam.players if home_player_locations.get(p.id) is not None and p.id not in exclude_players]
     outgoing_passes = {p.id: sum([d_num for p_id, d_num in p.pass_destinations.items()]) for p in mapped_players}
+    incoming_passes = {p.id: 0 for p in mapped_players}
+
+    for r_p in mapped_players:
+        for s_p in mapped_players:
+            incoming_passes[r_p.id] += s_p.pass_destinations.get(r_p) if s_p.pass_destinations.get(r_p) is not None else 0
 
     if relative_positioning:
         # sort players by outgoing passes and get max outgoing pass player
         top_passers = sorted(
             [p for p in mapped_players],
-            key=lambda x:-outgoing_passes[x.id]
+            key=lambda x:-(max(outgoing_passes[x.id], incoming_passes[x.id]))
         )
         top_passer = top_passers[0]
         player_loc_mean = np.mean(
@@ -149,21 +160,70 @@ def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=T
         while len(top_passers) > 1:
             top_passers.remove(top_passer)
 
-            top_receivers = [p_id for p_id, _ in sorted(
+            # players receiving passes from top_passer
+            top_receivers_from_current = [(p_id, n) for p_id, n in sorted(
                 [(r,n) for r,n in top_passer.pass_destinations.items()],
                 key=lambda x:-x[1]
             )]
 
-            next_passer = None
+            # players passing to top_passer
+            top_passers_to_current = [(p_id, n) for p_id, n in sorted(
+                [(p.id, p.pass_destinations.get(top_passer.id)) for p in mapped_players if p.pass_destinations.get(top_passer.id) is not None],
+                key=lambda x:-x[1]
+            )]
 
-            for receiver_id in top_receivers:
+            next_passer = None
+            is_receiver = False
+
+            top_num_passes = 0
+            for receiver_id, n in top_receivers_from_current:
                 receiver = home_player_objects[receiver_id]
                 if receiver_id not in exclude_players and receiver in top_passers:
                     next_passer = receiver
+                    top_num_passes = n
+                    break
+
+            for passer_id, n in top_passers_to_current:
+                passer = home_player_objects[passer_id]
+                if passer_id not in exclude_players and passer in top_passers:
+                    if n > top_num_passes:
+                        next_passer = passer
+                        top_num_passes = n
+                        is_receiver = True
                     break
 
             if next_passer is not None:
-                average_pass_vector = np.array(home_player_vectors[top_passer.id][next_passer.id]) / top_passer.pass_destinations[next_passer.id]
+                top_receivers_from_next = [(p_id, n) for p_id, n in sorted(
+                    [(r,n) for r,n in next_passer.pass_destinations.items()],
+                    key=lambda x:-x[1]
+                )]
+
+                top_passers_to_next = [(p_id, n) for p_id, n in sorted(
+                    [(p.id, p.pass_destinations.get(next_passer.id)) for p in mapped_players if p.pass_destinations.get(next_passer.id) is not None],
+                    key=lambda x:-x[1]
+                )]
+
+                top_num_passes = 0
+                for receiver_id, n in top_receivers_from_next:
+                    receiver = home_player_objects[receiver_id]
+                    if receiver_id not in exclude_players and receiver not in top_passers:
+                        top_passer = receiver
+                        top_num_passes = n
+                        is_receiver = True
+                        break
+                for passer_id, n in top_passers_to_next:
+                    passer = home_player_objects[passer_id]
+                    if passer_id not in exclude_players and passer not in top_passers:
+                        if n > top_num_passes:
+                            top_passer = passer
+                            top_num_passes = n
+                            is_receiver = False
+                        break
+
+                if is_receiver:
+                    average_pass_vector = -np.array(home_player_vectors[next_passer.id][top_passer.id]) / next_passer.pass_destinations[top_passer.id]
+                else:
+                    average_pass_vector = np.array(home_player_vectors[top_passer.id][next_passer.id]) / top_passer.pass_destinations[next_passer.id]
                 next_passer.x = top_passer.x + average_pass_vector[0] * xfact
                 next_passer.y = top_passer.y + average_pass_vector[1] * yfact
             else:
@@ -210,34 +270,38 @@ def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=T
             (player.x, player.y)
         )
 
-    # Plot network of passes with arrows
-    for player in match_OPTA.hometeam.players:
-        if player in exclude_players:
-            continue
-        for dest_player_id, num_passes in player.pass_destinations.items():
-            dest_player = match_OPTA.hometeam.player_map[dest_player_id]
-            # ax.arrow(
-            #     player.x,
-            #     player.y,
-            #     (dest_player.x - player.x),
-            #     (dest_player.y - player.y),
-            #     color='r',
-            #     length_includes_head=True,
-            #     # head_width=0.08*xfact,
-            #     # head_length=0.00002*yfact,
-            #     width = num_passes * 10
-            # )
-            if dest_player in exclude_players:
+    if display_passes:
+        # Plot network of passes with arrows
+        for player in match_OPTA.hometeam.players:
+            if player in exclude_players:
                 continue
-            arrow = patches.FancyArrowPatch(
-                (player.x, player.y),
-                (dest_player.x, dest_player.y),
-                connectionstyle="arc3,rad=.1",
-                color='r',
-                arrowstyle='Simple,tail_width=0.5,head_width=4,head_length=8',
-                linewidth=num_passes,
-            )
-            ax.add_artist(arrow)
+            for dest_player_id, num_passes in player.pass_destinations.items():
+                dest_player = match_OPTA.hometeam.player_map[dest_player_id]
+                if dest_player in exclude_players:
+                    continue
+                # ax.arrow(
+                #     player.x,
+                #     player.y,
+                #     (dest_player.x - player.x),
+                #     (dest_player.y - player.y),
+                #     color='r',
+                #     length_includes_head=True,
+                #     # head_width=0.08*xfact,
+                #     # head_length=0.00002*yfact,
+                #     width = num_passes * 10
+                # )
+                if dest_player in exclude_players:
+                    continue
+                arrow = patches.FancyArrowPatch(
+                    (player.x, player.y),
+                    (dest_player.x, dest_player.y),
+                    connectionstyle="arc3,rad=.1",
+                    color='r',
+                    arrowstyle='Simple,tail_width=0.5,head_width=4,head_length=8',
+                    linewidth=num_passes*0.8,
+                )
+                ax.add_artist(arrow)
+
 
     match_string = '%s %d vs %d %s' % (
         match_OPTA.hometeam.teamname,
