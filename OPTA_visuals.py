@@ -302,18 +302,6 @@ def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=T
                 continue
             for dest_player_id, num_passes in player.pass_destinations.items():
                 dest_player = match_OPTA.hometeam.player_map[dest_player_id]
-                # ax.arrow(
-                #     player.x,
-                #     player.y,
-                #     (dest_player.x - player.x),
-                #     (dest_player.y - player.y),
-                #     color='r',
-                #     length_includes_head=True,
-                #     # head_width=0.08*xfact,
-                #     # head_length=0.00002*yfact,
-                #     width = num_passes * 10
-                # )
-                # if dest_player in exclude_players:
                 if dest_player not in home_mapped_players:
                     continue
                 arrow = patches.FancyArrowPatch(
@@ -337,6 +325,104 @@ def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=T
     plt.waitforbuttonpress(0)
 
     return fig, ax
+
+
+def ball_movie(match_OPTA, relative_positioning=True, team="home", weighting="regular"):
+    """
+    Displays estimated player positions and animates ball movement throughout game. Highlights passes and
+    ball losses.
+    TODO: substitutions (for now color ball differently when passed to a sub)
+
+    Args:
+        match_OPTA (OPTAmatch)
+        relative_positioning (bool): whether the players should be displayed with relative position or average
+        team (string): "home" or "away"
+        weighting (string): type of network positioning to display
+    """
+
+    fig, ax = vis.plot_pitch(match_OPTA)
+    team_object = match_OPTA.hometeam if team == "home" else match_OPTA.awayteam
+
+    events_raw = [e for e in match_OPTA.hometeam.events if e.is_pass or e.is_shot or e.is_substitution]
+
+    mapped_players = get_player_positions(
+        match_OPTA,
+        relative_positioning=relative_positioning,
+        team=team,
+        weighting=weighting
+    )
+
+    for player in mapped_players:
+        shrink_factor = 0.25
+        fig, ax, pt = utils.plot_bivariate_normal(
+            [player.x, player.y],
+            player.cov * shrink_factor**2,
+            figax=(fig, ax)
+        )
+        ax.annotate(
+            team_object.player_map[player.id].lastname,
+            (player.x, player.y)
+        )
+
+    # display ball as black circle being passed
+    # turn ball into red x when lost
+    # turn ball blue when passed to a sub
+    # turn ball into diamond on shot attempt (black for attempt, green for success)
+    last_pass = None
+    ball = None
+    pause_time = 0.1
+    shot_pause_factor = 10
+    pass_lines = []
+    last_location = None
+    for e in events_raw:
+        if ball:
+            ball.remove()
+            ball = None
+        player = team_object.player_map[e.player_id]
+
+        if last_location:
+            new_pass = ax.arrow(
+                last_location[0],
+                last_location[1],
+                player.x - last_location[0],
+                player.y - last_location[1],
+                length_includes_head=True
+            )
+            pass_lines.append(new_pass)
+
+        last_location = (player.x, player.y)
+
+        if e.is_pass:
+            ball = ax.plot(player.x, player.y, color='black', marker='o')[0]
+            plt.pause(pause_time)
+
+            if e.outcome != 1:
+                ball.remove()
+                ball = ax.plot(player.x, player.y, color='red', marker='X')[0]
+                plt.pause(pause_time)
+
+                for l in pass_lines:
+                    l.remove()
+                    pass_lines = []
+                    last_location = None
+
+        elif e.is_shot:
+            ball = ax.plot(player.x, player.y, color='black', marker='o')[0]
+            plt.pause(pause_time)
+
+            color = 'black'
+            if e.outcome == 1:
+                color = 'green'
+            ball.remove()
+            ball = ax.plot(player.x, player.y, color=color, marker='D')[0]
+            plt.pause(pause_time*shot_pause_factor)
+
+            for l in pass_lines:
+                l.remove()
+                pass_lines = []
+                last_location = None
+
+    plt.waitforbuttonpress(0)
 
 
 def plot_all_passes(match_OPTA):
