@@ -32,7 +32,7 @@ def get_all_matches():
     return matches
 
 
-def get_player_positions(match_OPTA, relative_positioning=True, team="home", weighting="regular"):
+def get_player_positions(match_OPTA, relative_positioning=True, team="home", weighting="regular", show_determiners=False):
     """
     Fills in the x, y, and cov of each player object for the specified team
 
@@ -41,6 +41,10 @@ def get_player_positions(match_OPTA, relative_positioning=True, team="home", wei
         relative_positioning (bool): whether we want average or relative positioning
         team (string): team to get player locations for
     """
+    fig, ax = (None, None)
+    if relative_positioning and show_determiners:
+        fig, ax = vis.plot_pitch(match_OPTA)
+
     team_object = match_OPTA.hometeam if team == "home" else match_OPTA.awayteam
 
     events_raw = [e for e in team_object.events if e.is_pass or e.is_shot or e.is_substitution]
@@ -126,6 +130,15 @@ def get_player_positions(match_OPTA, relative_positioning=True, team="home", wei
             incoming_passes[r_p.id] += s_p.pass_destinations.get(r_p) if s_p.pass_destinations.get(r_p) is not None else 0
 
     if relative_positioning:
+        if relative_positioning and show_determiners:
+            max_passes = 0
+            for player in match_OPTA.hometeam.players:
+                player_max_passes = 0
+                if player.pass_destinations.values():
+                    player_max_passes = float(sorted(player.pass_destinations.values())[-1])
+                if player_max_passes > max_passes:
+                    max_passes = player_max_passes
+
         # sort players by outgoing passes and get max outgoing pass player
         top_passers = sorted(
             [p for p in mapped_players],
@@ -139,6 +152,8 @@ def get_player_positions(match_OPTA, relative_positioning=True, team="home", wei
         top_passer.x = player_loc_mean[0]
         top_passer.y = player_loc_mean[1]
 
+
+        used_pass_num = 1
         while len(top_passers) > 1:
             top_passers.remove(top_passer)
 
@@ -208,6 +223,31 @@ def get_player_positions(match_OPTA, relative_positioning=True, team="home", wei
                     average_pass_vector = np.array(player_vectors[top_passer.id][next_passer.id]) / top_passer.pass_destinations[next_passer.id]
                 next_passer.x = top_passer.x + average_pass_vector[0] * xfact
                 next_passer.y = top_passer.y + average_pass_vector[1] * yfact
+
+                if relative_positioning and show_determiners:
+                    # right to left is orange and left to right is red to differentiate directions
+                    color = 'red'
+                    if next_passer.x > top_passer.x:
+                        color = 'orange'
+
+                    max_width = 3
+
+                    arrow = patches.FancyArrowPatch(
+                        (top_passer.x, top_passer.y),
+                        (next_passer.x, next_passer.y),
+                        connectionstyle="arc3,rad=.1",
+                        color=color,
+                        arrowstyle='Simple,tail_width=0.5,head_width=4,head_length=8',
+                        # linewidth=num_passes*0.8,
+                        linewidth=max_width * (top_num_passes / max_passes)
+                    )
+                    ax.annotate(
+                        used_pass_num,
+                        ((top_passer.x + next_passer.x) / 2, (top_passer.y + next_passer.y) / 2)
+                    )
+                    used_pass_num += 1
+                    ax.add_artist(arrow)
+
             else:
                 next_passer = top_passers[0]
                 player_loc_mean = np.mean(
@@ -240,6 +280,20 @@ def get_player_positions(match_OPTA, relative_positioning=True, team="home", wei
             player_locations[player_id][:,0],
             player_locations[player_id][:,1]
         )
+
+    if relative_positioning and show_determiners:
+        for player in mapped_players:
+            shrink_factor = 0.25
+            fig, ax, pt = utils.plot_bivariate_normal(
+                [player.x, player.y],
+                player.cov * shrink_factor**2,
+                figax=(fig, ax)
+            )
+            ax.annotate(
+                match_OPTA.hometeam.player_map[player.id].lastname,
+                (player.x, player.y)
+            )
+        plt.waitforbuttonpress(0)
 
     return mapped_players
 
@@ -296,21 +350,39 @@ def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=T
 
     if display_passes:
         # Plot network of passes with arrows
+        max_passes = 0
+        for player in match_OPTA.hometeam.players:
+            player_max_passes = 0
+            if player.pass_destinations.values():
+                player_max_passes = float(sorted(player.pass_destinations.values())[-1])
+            if player_max_passes > max_passes:
+                max_passes = player_max_passes
+
         for player in match_OPTA.hometeam.players:
             # if player in exclude_players:
             if player not in home_mapped_players:
                 continue
+
             for dest_player_id, num_passes in player.pass_destinations.items():
                 dest_player = match_OPTA.hometeam.player_map[dest_player_id]
                 if dest_player not in home_mapped_players:
                     continue
+
+                # right to left is orange and left to right is red to differentiate directions
+                color = 'red'
+                if dest_player.x > player.x:
+                    color = 'orange'
+
+                max_width = 3
+
                 arrow = patches.FancyArrowPatch(
                     (player.x, player.y),
                     (dest_player.x, dest_player.y),
                     connectionstyle="arc3,rad=.1",
-                    color='r',
+                    color=color,
                     arrowstyle='Simple,tail_width=0.5,head_width=4,head_length=8',
-                    linewidth=num_passes*0.8,
+                    # linewidth=num_passes*0.8,
+                    linewidth=max_width * (num_passes / max_passes)
                 )
                 ax.add_artist(arrow)
 

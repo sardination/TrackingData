@@ -65,5 +65,6 @@ match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
 # # ovis.plot_defensive_actions(team,[match_OPTA],include_tackles=True,include_intercept=True)
 
 # ovis.plot_all_passes(match_OPTA)
-# ovis.plot_passing_network(match_OPTA, relative_positioning=True, display_passes=True, weighting="defensive")
-ovis.ball_movie(match_OPTA, relative_positioning=True, team="home")
+# ovis.plot_passing_network(match_OPTA, relative_positioning=True, display_passes=True, weighting="regular")
+# ovis.ball_movie(match_OPTA, relative_positioning=True, team="home")
+ovis.get_player_positions(match_OPTA, relative_positioning=True, team="home", weighting="regular", show_determiners=True)
