@@ -13,6 +13,8 @@ import chart_studio.plotly as py
 import chart_studio.tools as tls
 import Tracking_Visuals as vis
 import data_utils as utils
+from itertools import combinations
+import random
 
 
 def get_all_matches():
@@ -121,7 +123,7 @@ def get_player_positions(match_OPTA, relative_positioning=True, team="home", wei
     for player_id, _ in player_locations.items():
         player_locations[player_id] = player_locations[player_id] * [xfact, yfact]
 
-    mapped_players = [p for p in match_OPTA.hometeam.players if player_locations.get(p.id) is not None and p.id not in exclude_players]
+    mapped_players = [p for p in team_object.players if player_locations.get(p.id) is not None and p.id not in exclude_players]
     outgoing_passes = {p.id: sum([d_num for p_id, d_num in p.pass_destinations.items()]) for p in mapped_players}
     incoming_passes = {p.id: 0 for p in mapped_players}
 
@@ -132,7 +134,7 @@ def get_player_positions(match_OPTA, relative_positioning=True, team="home", wei
     if relative_positioning:
         if relative_positioning and show_determiners:
             max_passes = 0
-            for player in match_OPTA.hometeam.players:
+            for player in team_object.players:
                 player_max_passes = 0
                 if player.pass_destinations.values():
                     player_max_passes = float(sorted(player.pass_destinations.values())[-1])
@@ -217,10 +219,37 @@ def get_player_positions(match_OPTA, relative_positioning=True, team="home", wei
                             is_receiver = False
                         break
 
+                # SINGLE PASS LOCATION DETERMINATION
                 if is_receiver:
                     average_pass_vector = -np.array(player_vectors[next_passer.id][top_passer.id]) / next_passer.pass_destinations[top_passer.id]
                 else:
                     average_pass_vector = np.array(player_vectors[top_passer.id][next_passer.id]) / top_passer.pass_destinations[next_passer.id]
+
+                # BOTH DIRECTION LOCATION DETERMINATION
+                # average_pass_vector = np.array([0.0, 0.0])
+                # num_divide = 0
+                # if next_passer.pass_destinations.get(top_passer.id):
+                #     average_pass_vector -= np.array(player_vectors[next_passer.id][top_passer.id])
+                #     num_divide += next_passer.pass_destinations.get(top_passer.id)
+                # if top_passer.pass_destinations.get(next_passer.id):
+                #     average_pass_vector += np.array(player_vectors[top_passer.id][next_passer.id])
+                #     num_divide += top_passer.pass_destinations.get(next_passer.id)
+                # average_pass_vector /= num_divide
+
+                # AVERAGE PASS LOCATION DETERMINATION
+                # num_divide = 0
+                # average_pass_vector = np.array([0.0, 0.0])
+                # for player in mapped_players:
+                #     if player in top_passers:
+                #         continue
+                #     if player.pass_destinations.get(next_passer.id) is not None:
+                #         num_divide += player.pass_destinations.get(next_passer.id)
+                #         average_pass_vector += np.array(player_vectors[player.id][next_passer.id])
+                #     if next_passer.pass_destinations.get(player.id) is not None:
+                #         num_divide += next_passer.pass_destinations.get(player.id)
+                #         average_pass_vector -= np.array(player_vectors[next_passer.id][player.id])
+                # average_pass_vector /= num_divide
+
                 next_passer.x = top_passer.x + average_pass_vector[0] * xfact
                 next_passer.y = top_passer.y + average_pass_vector[1] * yfact
 
@@ -290,7 +319,7 @@ def get_player_positions(match_OPTA, relative_positioning=True, team="home", wei
                 figax=(fig, ax)
             )
             ax.annotate(
-                match_OPTA.hometeam.player_map[player.id].lastname,
+                team_object.player_map[player.id].lastname,
                 (player.x, player.y)
             )
         plt.waitforbuttonpress(0)
@@ -298,7 +327,99 @@ def get_player_positions(match_OPTA, relative_positioning=True, team="home", wei
     return mapped_players
 
 
-def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=True, display_passes=True):
+def find_player_triplets(match_OPTA, weighting="regular", team="home", relative_positioning=True, draw_triplets=True):
+    """
+    Determine triplets of players that are strongly connected
+
+    Args:
+        match_OPTA (OPTAmatch): match OPTA information
+
+    Kwargs:
+        weighting (string): type of passes considered. Choices are enumerated in `plot_passing_network`
+        team (string): "home" or "away" to specify which team from the match is being displayed
+        relative_positioning (bool): if True, player positions on the diagram should be relative
+        draw_triplets (bool): if True, display triplet triangles with relative weightings
+    """
+
+    # fig, ax = vis.plot_pitch(match_OPTA)
+
+    team_object = match_OPTA.hometeam if team == "home" else match_OPTA.awayteam
+
+    all_events = [e for e in team_object.events if e.is_pass or e.is_shot]
+    xfact = match_OPTA.fPitchXSizeMeters*100
+    yfact = match_OPTA.fPitchYSizeMeters*100
+
+    mapped_players = get_player_positions(
+        match_OPTA,
+        relative_positioning=relative_positioning,
+        team=team,
+        weighting=weighting
+    )
+
+    triplet_scores = {}
+    for poss_triplet in combinations([player.id for player in mapped_players], 3):
+        triplet_scores[tuple(sorted(poss_triplet))] = 0
+
+    consecutive_passers = []
+
+    for event in all_events:
+        player = team_object.player_map[event.player_id]
+
+        if player not in mapped_players:
+            consecutive_passers = []
+            continue
+
+        consecutive_passers.append(player.id)
+
+        # if a new passer has been added, pushing the unique players above a triplet, then remove the earliest
+        #   passers until a triplet is formed from the latest passes
+        while len(set(consecutive_passers)) > 3:
+            consecutive_passers = consecutive_passers[1:]
+
+        # if there are 3 unique passers in the last series of consecutive passes, then add another pass to the triplet
+        if len(set(consecutive_passers)) == 3:
+            triplet_scores[tuple(sorted(set(consecutive_passers)))] += 1
+
+        # clear the consecutive passers list if the ball has been lost or shot
+        if event.is_shot or event.outcome == 0:
+            consecutive_passers = []
+
+    sorted_triplets = sorted([ts for ts in triplet_scores.items()], key=lambda ts:-ts[1])
+    max_popularity = float(sorted_triplets[0][1])
+
+    max_width = 3
+    if draw_triplets:
+        fig, ax = plot_passing_network(
+            match_OPTA,
+            weighting=weighting,
+            team=team,
+            relative_positioning=relative_positioning,
+            display_passes=False,
+            wait=False
+        )
+
+        color_digits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
+
+        for triplet in sorted_triplets:
+            # arbitrary stop on triplet display
+            if triplet[1] < max_popularity / 4:
+                break
+            players = [team_object.player_map[p_id] for p_id in triplet[0]]
+            players.append(players[0])
+            color = '#' + ''.join([random.choice(color_digits) for _ in range(6)])
+            for i in range(len(players) - 1):
+                ax.plot(
+                    [players[i].x, players[i+1].x],
+                    [players[i].y, players[i+1].y],
+                    color=color,
+                    linewidth=max_width * (triplet[1] / max_popularity)
+                )
+            plt.pause(1)
+
+        plt.waitforbuttonpress(0)
+        return fig, ax
+
+def plot_passing_network(match_OPTA, weighting="regular", team="home", relative_positioning=True, display_passes=True, wait=True):
     """
     Plot the passing networks of the entire match, displaying player movement as bivariate normal
     ellipses and arrow weights directly corresponding to the number of passes executed
@@ -323,20 +444,22 @@ def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=T
     """
 
     fig, ax = vis.plot_pitch(match_OPTA)
+
+    team_object = match_OPTA.hometeam if team == "home" else match_OPTA.awayteam
+
     # some passes may be completed and followed by a shot instead of another pass
-    home_events_raw = [e for e in match_OPTA.hometeam.events if e.is_pass or e.is_shot or e.is_substitution]
-    away_events_raw = [e for e in match_OPTA.awayteam.events if e.is_pass or e.is_shot or e.is_substitution]
+    events_raw = [e for e in team_object.events if e.is_pass or e.is_shot or e.is_substitution]
     xfact = match_OPTA.fPitchXSizeMeters*100
     yfact = match_OPTA.fPitchYSizeMeters*100
 
-    home_mapped_players = get_player_positions(
+    mapped_players = get_player_positions(
         match_OPTA,
         relative_positioning=relative_positioning,
-        team="home",
+        team=team,
         weighting=weighting
     )
 
-    for player in home_mapped_players:
+    for player in mapped_players:
         shrink_factor = 0.25
         fig, ax, pt = utils.plot_bivariate_normal(
             [player.x, player.y],
@@ -344,28 +467,28 @@ def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=T
             figax=(fig, ax)
         )
         ax.annotate(
-            match_OPTA.hometeam.player_map[player.id].lastname,
+            team_object.player_map[player.id].lastname,
             (player.x, player.y)
         )
 
     if display_passes:
         # Plot network of passes with arrows
         max_passes = 0
-        for player in match_OPTA.hometeam.players:
+        for player in team_object.players:
             player_max_passes = 0
             if player.pass_destinations.values():
                 player_max_passes = float(sorted(player.pass_destinations.values())[-1])
             if player_max_passes > max_passes:
                 max_passes = player_max_passes
 
-        for player in match_OPTA.hometeam.players:
+        for player in team_object.players:
             # if player in exclude_players:
-            if player not in home_mapped_players:
+            if player not in mapped_players:
                 continue
 
             for dest_player_id, num_passes in player.pass_destinations.items():
-                dest_player = match_OPTA.hometeam.player_map[dest_player_id]
-                if dest_player not in home_mapped_players:
+                dest_player = team_object.player_map[dest_player_id]
+                if dest_player not in mapped_players:
                     continue
 
                 # right to left is orange and left to right is red to differentiate directions
@@ -394,7 +517,9 @@ def plot_passing_network(match_OPTA, weighting="regular", relative_positioning=T
         match_OPTA.awayteam.teamname
     )
     plt.title(match_string, fontsize=16, y=1.0)
-    plt.waitforbuttonpress(0)
+
+    if wait:
+        plt.waitforbuttonpress(0)
 
     return fig, ax
 
@@ -415,7 +540,7 @@ def ball_movie(match_OPTA, relative_positioning=True, team="home", weighting="re
     fig, ax = vis.plot_pitch(match_OPTA)
     team_object = match_OPTA.hometeam if team == "home" else match_OPTA.awayteam
 
-    events_raw = [e for e in match_OPTA.hometeam.events if e.is_pass or e.is_shot or e.is_substitution]
+    events_raw = [e for e in team_object.events if e.is_pass or e.is_shot or e.is_substitution]
 
     mapped_players = get_player_positions(
         match_OPTA,
