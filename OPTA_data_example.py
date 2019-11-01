@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import OPTA_visuals as ovis
+import OPTA_weighted_networks as onet
 import OPTA as opta
 import pickle
 import matplotlib.pyplot as plt
@@ -54,8 +55,8 @@ Aalborg Match IDs
 
 team = 'Aalborg BK'
 # match_id = 984602
-# match_id = 984455
-match_id = 984456
+match_id = 984455
+# match_id = 984456
 fname = str(match_id)
 
 match_OPTA = opta.read_OPTA_f7(fpath, fname)
@@ -65,30 +66,33 @@ match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
 # ovis.make_expG_timeline(match_OPTA)
 # # ovis.plot_defensive_actions(team,[match_OPTA],include_tackles=True,include_intercept=True)
 
+onet.map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False)
+
 # ovis.plot_all_passes(match_OPTA)
-# ovis.plot_passing_network(match_OPTA, relative_positioning=False, display_passes=True, weighting="regular")
+# ovis.plot_passing_network(match_OPTA, relative_positioning=True, display_passes=True, weighting="regular")
 # ovis.ball_movie(match_OPTA, relative_positioning=False, team="away")
 # ovis.get_player_positions(match_OPTA, relative_positioning=True, team="home", weighting="regular", show_determiners=True)
 # ovis.find_player_triplets(match_OPTA, relative_positioning=False, team="home", weighting="regular")
 
-sample_games = [984456, 984457, 984458, 984459, 984460, 984461, 984462, 984463, 984464]
-# fails 984462 and 984464
-for m_id in sample_games:
-    try:
-        fname = str(m_id)
-        match_OPTA = opta.read_OPTA_f7(fpath, fname)
-        match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
-        ovis.plot_passing_network(match_OPTA, relative_positioning=True, team="home", display_passes=True, weighting="regular", wait=False)
-        plt.savefig('{}_network_H_relative.png'.format(m_id), format='png')
+# sample_games = [984456, 984457, 984458, 984459, 984460, 984461, 984462, 984463, 984464]
+# sample_games = [984455]
+# # # fails 984462 and 984464
+# for m_id in sample_games:
+#     try:
+#         fname = str(m_id)
+#         match_OPTA = opta.read_OPTA_f7(fpath, fname)
+#         match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
+#         ovis.plot_passing_network(match_OPTA, relative_positioning=True, team="home", display_passes=True, weighting="regular", wait=False)
+#         plt.savefig('{}_network_H_relative.png'.format(m_id), format='png')
 
-        ovis.plot_passing_network(match_OPTA, relative_positioning=True, team="away", display_passes=True, weighting="regular", wait=False)
-        plt.savefig('{}_network_A_relative.png'.format(m_id), format='png')
+#         ovis.plot_passing_network(match_OPTA, relative_positioning=True, team="away", display_passes=True, weighting="regular", wait=False)
+#         plt.savefig('{}_network_A_relative.png'.format(m_id), format='png')
 
-        ovis.plot_passing_network(match_OPTA, relative_positioning=False, team="home", display_passes=True, weighting="regular", wait=False)
-        plt.savefig('{}_network_H_average.png'.format(m_id), format='png')
+#         ovis.plot_passing_network(match_OPTA, relative_positioning=False, team="home", display_passes=True, weighting="regular", wait=False)
+#         plt.savefig('{}_network_H_average.png'.format(m_id), format='png')
 
-        ovis.plot_passing_network(match_OPTA, relative_positioning=False, team="away", display_passes=True, weighting="regular", wait=False)
-        plt.savefig('{}_network_A_average.png'.format(m_id), format='png')
-    except KeyError:
-        print("failed {}".format(m_id))
+#         ovis.plot_passing_network(match_OPTA, relative_positioning=False, team="away", display_passes=True, weighting="regular", wait=False)
+#         plt.savefig('{}_network_A_average.png'.format(m_id), format='png')
+#     except KeyError:
+#         print("failed {}".format(m_id))
 

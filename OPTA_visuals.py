@@ -45,7 +45,8 @@ def get_player_positions(match_OPTA, relative_positioning=True, team="home", wei
     """
     fig, ax = (None, None)
     if relative_positioning and show_determiners:
-        fig, ax = vis.plot_pitch(match_OPTA)
+        # fig, ax = vis.plot_pitch(match_OPTA)
+        fig, ax = plt.subplots()
 
     team_object = match_OPTA.hometeam if team == "home" else match_OPTA.awayteam
 
@@ -220,10 +221,22 @@ def get_player_positions(match_OPTA, relative_positioning=True, team="home", wei
                         break
 
                 # SINGLE PASS LOCATION DETERMINATION
+                # if is_receiver:
+                #     average_pass_vector = -np.array(player_vectors[next_passer.id][top_passer.id]) / next_passer.pass_destinations[top_passer.id]
+                # else:
+                #     average_pass_vector = np.array(player_vectors[top_passer.id][next_passer.id]) / top_passer.pass_destinations[next_passer.id]
+
                 if is_receiver:
                     average_pass_vector = -np.array(player_vectors[next_passer.id][top_passer.id]) / next_passer.pass_destinations[top_passer.id]
                 else:
                     average_pass_vector = np.array(player_vectors[top_passer.id][next_passer.id]) / top_passer.pass_destinations[next_passer.id]
+
+                # total_passes = top_passer.pass_destinations.get(next_passer.id)
+                # if total_passes is None:
+                #     total_passes = 0
+                # if next_passer.pass_destinations.get(top_passer.id):
+                #     total_passes += next_passer.pass_destinations[top_passer.id]
+                # average_pass_vector = average_pass_vector / np.linalg.norm(average_pass_vector) / (total_passes) * 2
 
                 # BOTH DIRECTION LOCATION DETERMINATION
                 # average_pass_vector = np.array([0.0, 0.0])
@@ -316,7 +329,7 @@ def get_player_positions(match_OPTA, relative_positioning=True, team="home", wei
             fig, ax, pt = utils.plot_bivariate_normal(
                 [player.x, player.y],
                 player.cov * shrink_factor**2,
-                figax=(fig, ax)
+                figax=(fig, ax),
             )
             ax.annotate(
                 team_object.player_map[player.id].lastname,
@@ -461,11 +474,12 @@ def plot_passing_network(match_OPTA, weighting="regular", team="home", relative_
 
     for player in mapped_players:
         shrink_factor = 0.25
-        fig, ax, pt = utils.plot_bivariate_normal(
-            [player.x, player.y],
-            player.cov * shrink_factor**2,
-            figax=(fig, ax)
-        )
+        # fig, ax, pt = utils.plot_bivariate_normal(
+        #     [player.x, player.y],
+        #     player.cov * shrink_factor**2,
+        #     figax=(fig, ax)
+        # )
+        ax.plot([player.x, player.y])
         ax.annotate(
             team_object.player_map[player.id].lastname,
             (player.x, player.y)
