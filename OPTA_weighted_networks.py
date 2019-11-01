@@ -6,6 +6,8 @@ Created on Tue Oct 29 12:09:00 2019
 """
 
 import OPTA as OPTA
+
+from itertools import combinations
 import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
@@ -117,32 +119,55 @@ def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False):
     return pass_map
 
 
-def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False):
+def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, use_triplets=True):
     """
     Display a visual representation of the passing network. This network is not spatially
     aware in terms of player location on the pitch, but the length of each edge is inversely
     proportional to the number of passes on that edge.
+
+    Args:
+        match_OPTA (OPTAmatch): match in question
+    Kwargs:
+        team (string): "home" or "away"
+        exclude_subs (bool): whether to exclude subs from map
+        use_triplets (bool): whether to map connections based on triplets or all passes
     """
 
     team_object = get_team(match_OPTA, team=team)
     pass_map = get_all_pass_destinations(match_OPTA, team=team, exclude_subs=exclude_subs)
 
-    # TODO: deal with bi-directional edges of different weights (add?)
     G = nx.Graph()
-    for p_id, pass_dict in pass_map.items():
-        for r_id, n_passes in pass_dict.items():
-            G.add_edge(p_id, r_id, weight=n_passes)
+
+    if use_triplets:
+        triplets = find_player_triplets(match_OPTA, team=team, exclude_subs=exclude_subs)
+        max_popularity = float(triplets[0][1])
+        for triplet in triplets:
+            # arbitrary stop on triplet display
+            if triplet[1] < max_popularity / 4:
+                break
+            players = [p_id for p_id in triplet[0]]
+            players.append(players[0])
+            for i in range(len(players) - 1):
+                p_id = players[i]
+                r_id = players[i + 1]
+                G.add_edge(p_id, r_id, weight=triplet[1])
+    else:
+        # TODO: if unweighted, add bidirectional edges?
+        for p_id, pass_dict in pass_map.items():
+            for r_id, n_passes in pass_dict.items():
+                G.add_edge(p_id, r_id, weight=n_passes)
 
     pos = nx.spring_layout(G)
 
     # get labels
     labels = {}
     for p_id in G.nodes():
-        labels[p_id] = str(team_object.player_map[p_id])
+        # labels[p_id] = str(team_object.player_map[p_id])
+        labels[p_id] = "{}".format(team_object.player_map[p_id].lastname)
 
     nx.draw_networkx_nodes(G, pos, node_size=700)
     nx.draw_networkx_edges(G, pos, width=2)
-    nx.draw_networkx_labels(G, pos, labels, font_size=12, font_family='sans-serif')
+    nx.draw_networkx_labels(G, pos, labels, font_size=12, font_family='sans-serif', font_color='red')
 
     plt.axis('off')
     plt.show()
@@ -167,7 +192,7 @@ def find_player_triplets(match_OPTA, team="home", exclude_subs=False):
     all_events = [e for e in team_object.events if e.is_pass or e.is_shot]
 
     triplet_scores = {}
-    for poss_triplet in combinations([player.id for player in mapped_players], 3):
+    for poss_triplet in combinations([p_id for p_id in mapped_players], 3):
         triplet_scores[tuple(sorted(poss_triplet))] = 0
 
     consecutive_passers = []
