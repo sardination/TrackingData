@@ -20,7 +20,8 @@ Created on Thu Jun 13 21:33:43 2019
 
 
 # fpath = "/Users/laurieshaw/Documents/Football/Data/TrackingData/Tracab/SuperLiga/All/"
-fpath = "../OPTA/"
+# fpath = "../OPTA/"
+fpath = "../Copenhagen/"
 # fpath='/n/home03/lshaw/Tracking/Tracab/SuperLiga/' # path to directory of Tracab data
 
 '''
@@ -53,16 +54,47 @@ Aalborg Match IDs
 984628	AalborgBK_vs_AGFAarhus
 '''
 
-team = 'Aalborg BK'
+# team = 'Aalborg BK'
+team = 'Copenhagen'
 # match_id = 984602
-match_id = 984455
+# match_id = 984455
 # match_id = 984456
+match_id = 984468
 fname = str(match_id)
+
+all_copenhagen_match_ids = [
+    984459,
+    984463,
+    984468,
+    984478,
+    984486,
+    984496,
+    984507,
+    984514,
+    984517,
+    984528,
+    984533,
+    984542,
+    984548,
+    984552,
+    984558,
+    984567,
+    984574,
+    984581,
+    984591,
+    984596,
+    984606,
+    984612,
+    984615,
+    984625,
+    984634
+]
 
 match_OPTA = opta.read_OPTA_f7(fpath, fname)
 match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
 
 onet.map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False)
+plt.savefig("test.png", format='png')
 
 # ovis.plot_all_shots(match_OPTA, plotly=False)
 # ovis.make_expG_timeline(match_OPTA)

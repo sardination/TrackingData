@@ -13,6 +13,17 @@ import numpy as np
 import networkx as nx
 
 
+# node color mappings for different positions
+position_color_mapping = {
+    "Goalkeeper": "black",
+    "Defender": "red",
+    "Midfielder": "yellow",
+    "Striker": "green",
+    "Substitute": "blue",
+    "misc": "grey"
+}
+
+
 def get_team(match_OPTA, team="home"):
     """
     Return the appropriate team object from the match_OPTA
@@ -140,11 +151,12 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
 
     if use_triplets:
         triplets = find_player_triplets(match_OPTA, team=team, exclude_subs=exclude_subs)
-        max_popularity = float(triplets[0][1])
+        max_popularity = float(triplets[-1][1])
+
         for triplet in triplets:
             # arbitrary stop on triplet display
             if triplet[1] < max_popularity / 4:
-                break
+                continue
             players = [p_id for p_id in triplet[0]]
             players.append(players[0])
             for i in range(len(players) - 1):
@@ -159,15 +171,41 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
 
     pos = nx.spring_layout(G)
 
-    # get labels
-    labels = {}
+    # get node groups - labels and colors
+    node_groups = {position: {"ids": [], "labels": {}} for position, _ in position_color_mapping.items()}
+    # labels = {}
     for p_id in G.nodes():
         # labels[p_id] = str(team_object.player_map[p_id])
-        labels[p_id] = "{}".format(team_object.player_map[p_id].lastname)
+        # labels[p_id] = "{}".format(team_object.player_map[p_id].lastname)
 
-    nx.draw_networkx_nodes(G, pos, node_size=700)
+        player = team_object.player_map[p_id]
+        player_position = player.position
+        if position_color_mapping.get(player_position) is None:
+            player_position = "misc"
+
+        node_groups[player_position]["ids"].append(p_id)
+        # node_groups[player_position]["labels"][p_id] = "{}".format(team_object.player_map[p_id].lastname)
+        node_groups[player_position]["labels"][p_id] = p_id
+
+    # nx.draw_networkx_nodes(G, pos, node_size=700)
+    for position, node_group_info in node_groups.items():
+        nx.draw_networkx_nodes(
+            G,
+            pos,
+            node_size=700,
+            nodelist=node_group_info["ids"],
+            node_color=position_color_mapping[position],
+        )
+        nx.draw_networkx_labels(
+            G,
+            pos,
+            node_group_info["labels"],
+            font_size=12,
+            font_family='sans-serif',
+            font_color='cyan'
+        )
     nx.draw_networkx_edges(G, pos, width=2)
-    nx.draw_networkx_labels(G, pos, labels, font_size=12, font_family='sans-serif', font_color='red')
+    # nx.draw_networkx_labels(G, pos, labels, font_size=12, font_family='sans-serif', font_color='red')
 
     plt.axis('off')
     plt.show()
@@ -219,7 +257,7 @@ def find_player_triplets(match_OPTA, team="home", exclude_subs=False):
         if event.is_shot or event.outcome == 0:
             consecutive_passers = []
 
-    sorted_triplets = sorted([ts for ts in triplet_scores.items()], key=lambda ts:-ts[1])
+    sorted_triplets = sorted([ts for ts in triplet_scores.items()], key=lambda ts:ts[1])
     max_popularity = float(sorted_triplets[0][1])
 
     return sorted_triplets
