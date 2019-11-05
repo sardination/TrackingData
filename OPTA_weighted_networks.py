@@ -24,6 +24,45 @@ position_color_mapping = {
 }
 
 
+def get_color_by_gradient(value, low_color = "0000ff", high_color = "ff0000"):
+    """
+    Return RGB hex color for a 0-1 gradient between `low_color`
+    and `high_color` at position `value`
+
+    Args:
+        value (float): value between 0 and 1 in the gradient
+
+    Kwargs:
+        low_color (hex string): color corresponding to 0 in the gradient (default blue)
+        high_color (hex string): color corresponding to 1 in the gradient (default red)
+
+    Return:
+        gradient_color (hex string): color corresponding to `value` in the gradient
+    """
+
+    if value < 0:
+        value = 0
+    elif value > 1:
+        value = 1
+
+    if low_color[0] == "#":
+        low_color = low_color[1:]
+    if high_color[0] == "#":
+        high_color = high_color[1:]
+
+    low_color_rgb = [int(low_color[i:i+2], 16) for i in range(0, 6, 2)]
+    high_color_rgb = [int(high_color[i:i+2], 16) for i in range(0, 6, 2)]
+
+    grad_rgb = [
+        int((h - l) * value) if h > l else int((l - h) * (1 - value))
+        for l,h in zip(low_color_rgb, high_color_rgb)
+    ]
+
+    grad_hex = ''.join([hex(el)[2:].rjust(2, "0") for el in grad_rgb])
+
+    return "#{}".format(grad_hex)
+
+
 def get_team(match_OPTA, team="home"):
     """
     Return the appropriate team object from the match_OPTA
@@ -129,7 +168,9 @@ def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False):
             pass_map[last_pass.player_id][e.player_id]["num_passes"] += 1
             pass_dist = np.linalg.norm(np.array([e.x, e.y]) - np.array([last_pass.x, last_pass.y]))
             pass_map[last_pass.player_id][e.player_id]["avg_pass_dist"] += pass_dist
-            pass_laterality = np.abs(float(last_pass.y - e.y + epsilon) / float(last_pass.x - e.x + epsilon))
+            pass_laterality = np.degrees(np.arctan(np.abs(
+                float(last_pass.y - e.y + epsilon) / float(last_pass.x - e.x + epsilon)
+            )))
             pass_map[last_pass.player_id][e.player_id]["avg_pass_dir"] += pass_laterality
 
         if e.is_pass and e.outcome == 1:
@@ -144,6 +185,12 @@ def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False):
                 continue
             pass_map[p_id][r_id]["avg_pass_dist"] /= num_passes
             pass_map[p_id][r_id]["avg_pass_dir"] /= num_passes
+
+    # Normalize pass direction using max laterality (for now)
+    max_laterality = 90
+    for p_id in mapped_players:
+        for r_id in mapped_players:
+           pass_map[p_id][r_id]["avg_pass_dir"] = pass_map[p_id][r_id]["avg_pass_dir"] / max_laterality
 
     return pass_map
 
@@ -238,7 +285,11 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
     max_thickness = 3
     edge_widths = [(w / max_width) * max_thickness for w in edge_widths]
 
-    nx.draw_networkx_edges(G, pos, width=edge_widths)
+    edge_colors = [get_color_by_gradient((pass_map[u][v]["avg_pass_dir"] + pass_map[u][v]["avg_pass_dir"]) / 2)
+        for u,v in G.edges()
+    ]
+
+    nx.draw_networkx_edges(G, pos, width=edge_widths, edge_color=edge_colors)
     # nx.draw_networkx_labels(G, pos, labels, font_size=12, font_family='sans-serif', font_color='red')
 
     plt.axis('off')
