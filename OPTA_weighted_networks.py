@@ -115,17 +115,35 @@ def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False):
     exclude_players = get_substitutes(match_OPTA, team=team)[0] if exclude_subs else []
     mapped_players = get_mapped_players(match_OPTA, team=team, exclude_subs=exclude_subs)
 
-    pass_map = {p_id: {r_id: 0 for r_id in mapped_players} for p_id in mapped_players}
+    pass_map = {p_id: {r_id: {
+                    "num_passes": 0,
+                    "avg_pass_dist": 0,
+                    "avg_pass_dir": 0 # scale of 0 to 1 indicating lateral - lengthwise
+                } for r_id in mapped_players} for p_id in mapped_players}
 
     last_pass = None
+    epsilon = 0.00000000001
     for e in events_raw:
         if last_pass is not None:
-            pass_map[last_pass.player_id][e.player_id] += 1
+            # pass_map[last_pass.player_id][e.player_id] += 1
+            pass_map[last_pass.player_id][e.player_id]["num_passes"] += 1
+            pass_dist = np.linalg.norm(np.array([e.x, e.y]) - np.array([last_pass.x, last_pass.y]))
+            pass_map[last_pass.player_id][e.player_id]["avg_pass_dist"] += pass_dist
+            pass_laterality = np.abs(float(last_pass.y - e.y + epsilon) / float(last_pass.x - e.x + epsilon))
+            pass_map[last_pass.player_id][e.player_id]["avg_pass_dir"] += pass_laterality
 
         if e.is_pass and e.outcome == 1:
             last_pass = e
         else:
             last_pass = None
+
+    for p_id in mapped_players:
+        for r_id in mapped_players:
+            num_passes = pass_map[p_id][r_id]["num_passes"]
+            if num_passes == 0:
+                continue
+            pass_map[p_id][r_id]["avg_pass_dist"] /= num_passes
+            pass_map[p_id][r_id]["avg_pass_dir"] /= num_passes
 
     return pass_map
 
@@ -164,10 +182,15 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
                 r_id = players[i + 1]
                 G.add_edge(p_id, r_id, weight=triplet[1])
     else:
+        # WEIGHTED BY NUMBER OF PASSES
         # TODO: if unweighted, add bidirectional edges?
         for p_id, pass_dict in pass_map.items():
-            for r_id, n_passes in pass_dict.items():
-                G.add_edge(p_id, r_id, weight=n_passes)
+            for r_id, pass_info in pass_dict.items():
+                n_passes = pass_info["num_passes"]
+                if not G.has_edge(p_id, r_id):
+                    G.add_edge(p_id, r_id, weight=n_passes)
+                else:
+                    G.add_edge(p_id, r_id, weight=n_passes + pass_map[r_id][p_id]["num_passes"])
 
     pos = nx.spring_layout(G)
 
@@ -204,7 +227,18 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
             font_family='sans-serif',
             font_color='cyan'
         )
-    nx.draw_networkx_edges(G, pos, width=2)
+    # edge_widths = [G[u][v]['weight'] for u,v in G.edges()]
+    # average the average distances from u to v and from v to u for the thickness of each edge
+    # take the reciprocal because closer passes should be thicker
+    edge_widths = [1 / ((pass_map[u][v]["avg_pass_dist"] + pass_map[v][u]["avg_pass_dist"]) / 2)
+        if pass_map[u][v]["avg_pass_dist"] + pass_map[v][u]["avg_pass_dist"] != 0 else 0
+        for u,v in G.edges()
+    ]
+    max_width = max(edge_widths)
+    max_thickness = 3
+    edge_widths = [(w / max_width) * max_thickness for w in edge_widths]
+
+    nx.draw_networkx_edges(G, pos, width=edge_widths)
     # nx.draw_networkx_labels(G, pos, labels, font_size=12, font_family='sans-serif', font_color='red')
 
     plt.axis('off')
