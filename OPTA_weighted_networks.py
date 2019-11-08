@@ -136,6 +136,45 @@ def get_mapped_players(match_OPTA, team="home", exclude_subs=False):
     return mapped_players
 
 
+def get_clustering_coefficients(mapped_players, pass_map, weighted=True):
+    """
+    Return the clustering coefficient of every mapped player as an array
+
+    Args:
+        mapped_players (list): list of player_ids for every mapped player
+        pass_map (dict of dicts): pass_map[u][v] is number of passes from u to v
+    Kwargs:
+        weighted (bool): whether to get the weighted clustering coefficients
+
+    Return:
+        clustering_coefficients (1D array)
+    """
+
+    freq_matrix = np.array([[0] * len(mapped_players) for _ in range(len(mapped_players))])
+    for p_index, p_id in enumerate(mapped_players):
+        for r_index, r_id in enumerate(mapped_players):
+            freq_matrix[p_index][r_index] = pass_map[p_id][r_id]['num_passes']
+    adjacency_matrix = np.array(freq_matrix).astype('bool')
+    weighted_matrix = freq_matrix ** (1/3)
+
+    degrees = np.sum(adjacency_matrix, axis=0) + np.sum(adjacency_matrix, axis=1)
+    degrees_inout = adjacency_matrix * adjacency_matrix.T
+    np.fill_diagonal(degrees_inout, 0)
+    degrees_inout = np.sum(degrees_inout, axis=1)
+
+    coeffs = []
+    if weighted:
+        coeffs = np.diagonal(
+                np.linalg.matrix_power((weighted_matrix + weighted_matrix.T), 3)
+            ) /(2 * (degrees * (degrees - 1)) - 2 * degrees_inout)
+    else:
+        coeffs = np.diagonal(np.linalg.matrix_power(
+            (adjacency_matrix + adjacency_matrix.T), 3)
+        ) / (2 * (degrees * (degrees - 1)) - 2 * degrees_inout)
+
+    return {p_id : coeff for p_id, coeff in zip(mapped_players, coeffs)}
+
+
 def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False):
     """
     Generate a dictionary of dictionaries where d[p_id1][p_id2] is the number of
@@ -195,7 +234,7 @@ def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False):
     return pass_map
 
 
-def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, use_triplets=True):
+def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, use_triplets=True, block=True):
     """
     Display a visual representation of the passing network. This network is not spatially
     aware in terms of player location on the pitch, but the length of each edge is inversely
@@ -207,6 +246,7 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
         team (string): "home" or "away"
         exclude_subs (bool): whether to exclude subs from map
         use_triplets (bool): whether to map connections based on triplets or all passes
+        block(bool): whether to block the display of the network plt
     """
 
     team_object = get_team(match_OPTA, team=team)
@@ -260,12 +300,19 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
         # node_groups[player_position]["labels"][p_id] = "{}".format(team_object.player_map[p_id].lastname)
         node_groups[player_position]["labels"][p_id] = p_id
 
+    clustering_coeffs = get_clustering_coefficients(pass_map.keys(), pass_map, weighted=True)
+    print(clustering_coeffs)
+    max_clustering_coeff = max(clustering_coeffs.values()) ** 3 # ^ 3 to exaggerate effect
+    max_node_size = 1200
+    node_sizes = [(clustering_coeffs[n] ** 3 / max_clustering_coeff) * max_node_size for n in G.nodes()]
+
     # nx.draw_networkx_nodes(G, pos, node_size=700)
     for position, node_group_info in node_groups.items():
         nx.draw_networkx_nodes(
             G,
             pos,
-            node_size=700,
+            # node_size=700,
+            node_size=node_sizes,
             nodelist=node_group_info["ids"],
             node_color=position_color_mapping[position],
         )
@@ -296,7 +343,7 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
     # nx.draw_networkx_labels(G, pos, labels, font_size=12, font_family='sans-serif', font_color='red')
 
     plt.axis('off')
-    plt.show(block=False)
+    plt.show(block=block)
 
 
 def find_player_triplets(match_OPTA, team="home", exclude_subs=False):
@@ -339,6 +386,7 @@ def find_player_triplets(match_OPTA, team="home", exclude_subs=False):
 
         # if there are 3 unique passers in the last series of consecutive passes, then add another pass to the triplet
         if len(set(consecutive_passers)) == 3:
+            # USING RAW NUMBER OF TRIPLETS
             triplet_scores[tuple(sorted(set(consecutive_passers)))] += 1
 
         # clear the consecutive passers list if the ball has been lost or shot
