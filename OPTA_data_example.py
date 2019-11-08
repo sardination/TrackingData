@@ -90,10 +90,13 @@ all_copenhagen_match_ids = [
     984634
 ]
 
-match_OPTA = opta.read_OPTA_f7(fpath, fname)
-match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
-
-onet.map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, use_triplets=False)
+for match_id in all_copenhagen_match_ids:
+    fname = str(match_id)
+    match_OPTA = opta.read_OPTA_f7(fpath, fname)
+    match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
+    onet.map_weighted_passing_network(match_OPTA, team="home", exclude_subs=True, use_triplets=True)
+    plt.savefig("weighted_networks_nosubs_triplets/{}_weighted_network.png".format(fname), format='png')
+    plt.clf()
 
 # ovis.plot_all_shots(match_OPTA, plotly=False)
 # ovis.make_expG_timeline(match_OPTA)

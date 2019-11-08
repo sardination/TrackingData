@@ -163,7 +163,7 @@ def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False):
     last_pass = None
     epsilon = 0.00000000001
     for e in events_raw:
-        if last_pass is not None:
+        if last_pass is not None and last_pass.player_id in mapped_players and e.player_id in mapped_players:
             # pass_map[last_pass.player_id][e.player_id] += 1
             pass_map[last_pass.player_id][e.player_id]["num_passes"] += 1
             pass_dist = np.linalg.norm(np.array([e.x, e.y]) - np.array([last_pass.x, last_pass.y]))
@@ -219,15 +219,13 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
         max_popularity = float(triplets[-1][1])
 
         for triplet in triplets:
-            # arbitrary stop on triplet display
-            if triplet[1] < max_popularity / 4:
-                continue
             players = [p_id for p_id in triplet[0]]
             players.append(players[0])
             for i in range(len(players) - 1):
                 p_id = players[i]
                 r_id = players[i + 1]
                 G.add_edge(p_id, r_id, weight=triplet[1])
+
     else:
         # WEIGHTED BY NUMBER OF PASSES
         # TODO: if unweighted, add bidirectional edges?
@@ -239,7 +237,12 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
                 else:
                     G.add_edge(p_id, r_id, weight=n_passes + pass_map[r_id][p_id]["num_passes"])
 
-    pos = nx.spring_layout(G)
+    # hold goalkeeper node in position (0,0) on all graphs
+    set_pos = {}
+    for p_id in pass_map.keys():
+        if team_object.player_map[p_id].position == "Goalkeeper":
+            set_pos[p_id] = (0,0)
+    pos = nx.spring_layout(G, pos=set_pos, fixed=set_pos.keys())
 
     # get node groups - labels and colors
     node_groups = {position: {"ids": [], "labels": {}} for position, _ in position_color_mapping.items()}
@@ -293,7 +296,7 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
     # nx.draw_networkx_labels(G, pos, labels, font_size=12, font_family='sans-serif', font_color='red')
 
     plt.axis('off')
-    plt.show()
+    plt.show(block=False)
 
 
 def find_player_triplets(match_OPTA, team="home", exclude_subs=False):
