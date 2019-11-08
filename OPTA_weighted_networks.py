@@ -250,6 +250,7 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
     """
 
     team_object = get_team(match_OPTA, team=team)
+    print(team_object.teamname)
     pass_map = get_all_pass_destinations(match_OPTA, team=team, exclude_subs=exclude_subs)
 
     G = nx.Graph()
@@ -301,7 +302,6 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
         node_groups[player_position]["labels"][p_id] = p_id
 
     clustering_coeffs = get_clustering_coefficients(pass_map.keys(), pass_map, weighted=True)
-    print(clustering_coeffs)
     max_clustering_coeff = max(clustering_coeffs.values()) ** 3 # ^ 3 to exaggerate effect
     max_node_size = 1200
     node_sizes = [(clustering_coeffs[n] ** 3 / max_clustering_coeff) * max_node_size for n in G.nodes()]
@@ -311,8 +311,8 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
         nx.draw_networkx_nodes(
             G,
             pos,
-            # node_size=700,
-            node_size=node_sizes,
+            node_size=700,
+            # node_size=node_sizes,
             nodelist=node_group_info["ids"],
             node_color=position_color_mapping[position],
         )
