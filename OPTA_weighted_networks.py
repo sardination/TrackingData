@@ -136,6 +136,57 @@ def get_mapped_players(match_OPTA, team="home", exclude_subs=False):
     return mapped_players
 
 
+def get_weighted_adjacency_matrix(mapped_players, pass_map):
+    """
+    Return the weighted adjacency matrix for all `mapped_players` given
+    the `pass_map` of information about which players have passed to
+    which other players how many times during the match.
+
+    Args:
+        mapped_players (list): list of player_ids for every mapped player
+        pass_map (dict of dicts): pass_map[u][v] is number of passes from u to v
+
+    Return:
+        weighted_adjacency_matrix (2D array)
+    """
+
+    weighted_adjacency_matrix = np.array([[0] * len(mapped_players) for _ in range(len(mapped_players))])
+    for p_index, p_id in enumerate(mapped_players):
+        for r_index, r_id in enumerate(mapped_players):
+            weighted_adjacency_matrix[p_index][r_index] = pass_map[p_id][r_id]['num_passes']
+
+    return weighted_adjacency_matrix
+
+
+def get_eigenvalues(mapped_players, pass_map):
+    """
+    Return highest eigenvalue of weighted adjacency matrix (quantifier of
+    network strength) and second-lowest eigenvalue of Laplacian matrix
+    (represents algebraic connectivity)
+
+    Args:
+        mapped_players (list): list of player_ids for every mapped player
+        pass_map (dict of dicts): pass_map[u][v] is number of passes from u to v
+
+    Return:
+        eigenvalues (tuple): highest_eigenvalue, second_lowest_laplacian_eigenvalue
+    """
+
+    weighted_adjacency_matrix = get_weighted_adjacency_matrix(mapped_players, pass_map)
+    eigenvalues, _ = np.linalg.eig(weighted_adjacency_matrix)
+
+    network_strength = max(eigenvalues)
+
+    degree_matrix = np.diag(np.sum(weighted_adjacency_matrix, axis=1))
+    adjacency_matrix = np.array(weighted_adjacency_matrix).astype('bool')
+    laplacian_matrix = degree_matrix - adjacency_matrix
+    lap_eigenvalues, _ = np.linalg.eig(laplacian_matrix)
+
+    algebraic_connectivity = sorted(lap_eigenvalues)[1]
+
+    return network_strength, algebraic_connectivity
+
+
 def get_clustering_coefficients(mapped_players, pass_map, weighted=True):
     """
     Return the clustering coefficient of every mapped player as an array
@@ -150,10 +201,7 @@ def get_clustering_coefficients(mapped_players, pass_map, weighted=True):
         clustering_coefficients (1D array)
     """
 
-    freq_matrix = np.array([[0] * len(mapped_players) for _ in range(len(mapped_players))])
-    for p_index, p_id in enumerate(mapped_players):
-        for r_index, r_id in enumerate(mapped_players):
-            freq_matrix[p_index][r_index] = pass_map[p_id][r_id]['num_passes']
+    freq_matrix = get_weighted_adjacency_matrix(mapped_players, pass_map)
     adjacency_matrix = np.array(freq_matrix).astype('bool')
     weighted_matrix = freq_matrix ** (1/3)
 
@@ -225,11 +273,14 @@ def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False):
             pass_map[p_id][r_id]["avg_pass_dist"] /= num_passes
             pass_map[p_id][r_id]["avg_pass_dir"] /= num_passes
 
-    # Normalize pass direction using max laterality (for now)
+    # Normalize pass direction using right angle
     max_laterality = 90
+    # Normalize pass distance using pitch diagonal length
+    max_dist = np.sqrt(match_OPTA.fPitchXSizeMeters ** 2 + match_OPTA.fPitchYSizeMeters ** 2)
     for p_id in mapped_players:
         for r_id in mapped_players:
            pass_map[p_id][r_id]["avg_pass_dir"] = pass_map[p_id][r_id]["avg_pass_dir"] / max_laterality
+           pass_map[p_id][r_id]["avg_pass_dist"] = pass_map[p_id][r_id]["avg_pass_dist"] / max_dist
 
     return pass_map
 
@@ -335,12 +386,18 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
     max_thickness = 3
     edge_widths = [(w / max_width) * max_thickness for w in edge_widths]
 
-    edge_colors = [get_color_by_gradient((pass_map[u][v]["avg_pass_dir"] + pass_map[u][v]["avg_pass_dir"]) / 2)
+    edge_colors = [get_color_by_gradient((pass_map[u][v]["avg_pass_dir"] + pass_map[v][u]["avg_pass_dir"]) / 2)
         for u,v in G.edges()
     ]
 
     nx.draw_networkx_edges(G, pos, width=edge_widths, edge_color=edge_colors)
     # nx.draw_networkx_labels(G, pos, labels, font_size=12, font_family='sans-serif', font_color='red')
+
+    # DISPLAY METRICS
+    network_strength, algebraic_connectivity = get_eigenvalues(pass_map.keys(), pass_map)
+    print("clustering coefficients: {}".format(clustering_coeffs))
+    print("network strength: {}".format(network_strength))
+    print("algebraic connectivity: {}".format(algebraic_connectivity))
 
     plt.axis('off')
     plt.show(block=block)
