@@ -5,6 +5,7 @@ Created on Tue Oct 29 12:09:00 2019
 @author: skandaswamy
 """
 
+from formations import Formation
 import OPTA as OPTA
 
 from itertools import combinations
@@ -172,7 +173,9 @@ def get_eigenvalues(mapped_players, pass_map):
         eigenvalues (tuple): highest_eigenvalue, second_lowest_laplacian_eigenvalue
     """
 
-    weighted_adjacency_matrix = get_weighted_adjacency_matrix(mapped_players, pass_map)
+    total_passes = sum([pass_map[p_id][r_id]["num_passes"] for r_id in mapped_players for p_id in mapped_players])
+
+    weighted_adjacency_matrix = get_weighted_adjacency_matrix(mapped_players, pass_map) / total_passes
     eigenvalues, _ = np.linalg.eig(weighted_adjacency_matrix)
 
     network_strength = max(eigenvalues)
@@ -213,14 +216,85 @@ def get_clustering_coefficients(mapped_players, pass_map, weighted=True):
     coeffs = []
     if weighted:
         coeffs = np.diagonal(
-                np.linalg.matrix_power((weighted_matrix + weighted_matrix.T), 3)
-            ) /(2 * (degrees * (degrees - 1)) - 2 * degrees_inout)
+            np.linalg.matrix_power((weighted_matrix + weighted_matrix.T), 3)
+        ) / (2 * (degrees * (degrees - 1) - 2 * degrees_inout))
     else:
         coeffs = np.diagonal(np.linalg.matrix_power(
             (adjacency_matrix + adjacency_matrix.T), 3)
-        ) / (2 * (degrees * (degrees - 1)) - 2 * degrees_inout)
+        ) / (2 * (degrees * (degrees - 1) - 2 * degrees_inout))
 
     return {p_id : coeff for p_id, coeff in zip(mapped_players, coeffs)}
+
+
+def get_pagerank(match_OPTA, team="home"):
+    """
+    Return pagerank vector of all players involved in match play
+
+    Args:
+        match_OPTA (OPTAmatch): match in question
+    Kwargs:
+        team (string): "home" or "away"
+
+    Return:
+        pagerank_vector (list): pagerank of each player
+    """
+
+    # all events that count as either "passing" or "not passing"
+    relevant_event_ids = [
+        1,  # pass
+        2,  # offside pass
+        3,  # take on
+        13, # shot missed
+        14, # shot hit post
+        15, # shot saved
+        16, # shot made goal
+    ]
+
+    team_object = get_team(match_OPTA, team=team)
+    events_raw = [e for e in team_object.events if e.type_id in relevant_event_ids]
+
+    successful_pass_count = {} # number of successful passes per player id referenced
+    total_events_count = {} # number of total relevant events per player id referenced
+
+    # player-to-player pass information
+    pass_map = get_all_pass_destinations(match_OPTA, team=team, exclude_subs=False)
+
+    # count how many successful passes and total events there are for each player
+    for event in events_raw:
+        player_id = event.player_id
+
+        events_so_far = total_events_count.get(player_id)
+        if events_so_far is None:
+            total_events_count[player_id] = 1
+            successful_pass_count[player_id] = 0
+        else:
+            total_events_count[player_id] += 1
+
+        if event.is_pass:
+            successful_pass_count[player_id] += 1
+
+    # probability heuristic for completed passes vs total play continuation events
+    p_values = {
+        player_id: float(successful_pass_count[player_id]) / float(total_events_count[player_id])
+        for player_id in total_events_count.keys()
+    }
+
+    pagerank_graph = nx.DiGraph()
+    for p_id, p_pass_map in pass_map.items():
+        for r_id, pass_info in p_pass_map.items():
+            n_passes = pass_info["num_passes"]
+            pagerank_graph.add_edge(p_id, r_id, weight=n_passes)
+
+    # alphas = [p_values[player_id] for player_id in pagerank_graph.nodes()]
+    alpha = sum([v for _, v in p_values.items()]) / len(p_values.keys())
+
+    pageranks = nx.pagerank_numpy(
+        pagerank_graph,
+        alpha=alpha,
+        weight='weight'
+    )
+
+    return pageranks
 
 
 def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False):
@@ -334,7 +408,7 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
     for p_id in pass_map.keys():
         if team_object.player_map[p_id].position == "Goalkeeper":
             set_pos[p_id] = (0,0)
-    pos = nx.spring_layout(G, pos=set_pos, fixed=set_pos.keys())
+    pos = nx.spring_layout(G, pos=set_pos, fixed=set_pos.keys(), iterations=10)
 
     # get node groups - labels and colors
     node_groups = {position: {"ids": [], "labels": {}} for position, _ in position_color_mapping.items()}
@@ -362,8 +436,8 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
         nx.draw_networkx_nodes(
             G,
             pos,
-            node_size=700,
-            # node_size=node_sizes,
+            # node_size=700,
+            node_size=node_sizes,
             nodelist=node_group_info["ids"],
             node_color=position_color_mapping[position],
         )
@@ -375,7 +449,7 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
             font_family='sans-serif',
             font_color='cyan'
         )
-    # edge_widths = [G[u][v]['weight'] for u,v in G.edges()]
+    edge_widths = [G[u][v]['weight'] for u,v in G.edges()]
     # average the average distances from u to v and from v to u for the thickness of each edge
     # take the reciprocal because closer passes should be thicker
     edge_widths = [1 / ((pass_map[u][v]["avg_pass_dist"] + pass_map[v][u]["avg_pass_dist"]) / 2)
@@ -390,6 +464,7 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
         for u,v in G.edges()
     ]
 
+    # nx.draw_networkx_edges(G, pos, width=edge_widths, edge_color=edge_colors)
     nx.draw_networkx_edges(G, pos, width=edge_widths, edge_color=edge_colors)
     # nx.draw_networkx_labels(G, pos, labels, font_size=12, font_family='sans-serif', font_color='red')
 
@@ -403,6 +478,18 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
     plt.show(block=block)
 
 
+def map_network_by_formation(match_OPTA, formation):
+    """
+    Map the network by placing nodes by formation
+
+    Args:
+        match_OPTA (OPTAmatch): match OPTA information
+        formation (Formation): formation information for relevant team
+    """
+
+    G = formation.get_formation_graph()
+
+
 def find_player_triplets(match_OPTA, team="home", exclude_subs=False):
     """
     Determine triplets of players that are strongly connected
@@ -412,6 +499,7 @@ def find_player_triplets(match_OPTA, team="home", exclude_subs=False):
 
     Kwargs:
         team (string): "home" or "away" to specify which team from the match is being displayed
+        exclude_subs (bool): whether to include subs in the triplets or not
 
     Return:
         sorted_triples (list of tuples): list of triplets (members, weight) in descending order of weight
@@ -454,3 +542,74 @@ def find_player_triplets(match_OPTA, team="home", exclude_subs=False):
     max_popularity = float(sorted_triplets[0][1])
 
     return sorted_triplets
+
+
+def plot_passes_vs_dist(match_OPTA, team="home", exclude_subs=False):
+    """
+    Create a scatter plot where each point corresponds to a different pair of players.
+    Each point indicates the number of passes against the average pass distance for the pair.
+
+    Args:
+        match_OPTA (OPTAmatch): match OPTA information
+
+    Kwargs:
+        team (string): "home" or "away" to specify which team from the match is being displayed
+        exclude_subs (bool): whether to include subs in the triplets or not
+    """
+
+    team_object = get_team(match_OPTA, team=team)
+    pass_map = get_all_pass_destinations(match_OPTA, team=team, exclude_subs=exclude_subs)
+
+    mapped_players = pass_map.keys()
+
+    pairs = combinations([p_id for p_id in mapped_players], 2)
+
+    points = []
+    for (p1_id, p2_id) in pairs:
+        num_passes = pass_map[p1_id][p2_id]["num_passes"] + pass_map[p2_id][p1_id]["num_passes"]
+        avg_pass_dist = 0
+        if num_passes:
+            avg_pass_dist = (pass_map[p1_id][p2_id]["avg_pass_dist"] * pass_map[p1_id][p2_id]["num_passes"] + \
+                pass_map[p2_id][p1_id]["avg_pass_dist"] * pass_map[p2_id][p1_id]["num_passes"]) / num_passes
+
+        points.append((num_passes, avg_pass_dist))
+
+    points = np.array(points)
+
+    plt.plot(points[:,0], points[:,1], 'bo')
+    plt.show()
+
+    return pairs, points
+
+
+def determine_similarity(matches_OPTA, team_id, exclude_subs=False):
+    """
+    TODO: INCOMPLETE
+    Find similarity between two matchs based on the weight differences between all possible
+    pairs of players
+
+    Args:
+        matches_OPTA (list of OPTAmatch): list of match OPTA information
+        team_id (int): team id to compare between matches
+
+    Kwargs:
+        exclude_subs (bool): whether to exclude subs in the list of players being evaluated
+    """
+
+    match_weights = {}
+
+    for match in matches_OPTA:
+        team = None
+        team_str = ""
+        if match.hometeam.team_id == team_id:
+            team = match.hometeam
+            team_str = "home"
+        elif match.awayteam.team_id == team_id:
+            team = match.awayteam
+            team_str = "away"
+        else:
+            continue
+
+        pairs, points = plot_passes_vs_dist(match, team=team_str, exclude_subs=exclude_subs)
+
+

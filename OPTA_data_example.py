@@ -93,9 +93,25 @@ all_copenhagen_match_ids = [
 copenhagen_team_id = 569
 
 # all_copenhagen_match_ids = [all_copenhagen_match_ids[0]]
+all_copenhagen_match_ids = [984567]
+
+for match_id in all_copenhagen_match_ids:
+    fname = str(match_id)
+    match_OPTA = opta.read_OPTA_f7(fpath, fname)
+    match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
+
+    home_or_away = "home"
+    home_team = onet.get_team(match_OPTA, team="home")
+    away_team = onet.get_team(match_OPTA, team="away")
+    if home_team.team_id != copenhagen_team_id:
+        home_or_away = "away"
+
+    onet.plot_passes_vs_dist(match_OPTA, team=home_or_away, exclude_subs=False)
 
 # Player clustering coefficients "over time"
 # coefficients = {}
+# eigenvalues = {}
+# lat_eigenvalues = {}
 # match_outcomes = []
 # for match_id in all_copenhagen_match_ids:
 #     fname = str(match_id)
@@ -124,9 +140,57 @@ copenhagen_team_id = 569
 #             coefficients[p_id] = {}
 #         coefficients[p_id][match_id] = coeff
 
+#     eigenvalues[match_id], lat_eigenvalues[match_id] = onet.get_eigenvalues(pass_map.keys(), pass_map)
+
 # x = [str(match_id) for match_id in all_copenhagen_match_ids]
 # player_ids = coefficients.keys()
 # ys = {p_id: [coefficients.get(p_id).get(match_id) for match_id in all_copenhagen_match_ids] for p_id in player_ids}
+
+# color_digits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
+
+# fig, axes = plt.subplots(len(player_ids) + 3, 1, sharex='col')
+# for i, p_id in enumerate(player_ids):
+#     color = '#' + ''.join([random.choice(color_digits) for _ in range(6)])
+#     axes[i].plot(x, ys[p_id], color=color, label="{}".format(p_id))
+# axes[-3].plot(x, [eigenvalues[m_id] for m_id in all_copenhagen_match_ids], color='green', label='eig')
+# axes[-2].plot(x, [lat_eigenvalues[m_id] for m_id in all_copenhagen_match_ids], color='blue', label='l_eig')
+# axes[-1].plot(x, match_outcomes, color='red', label="outcomes")
+# plt.xticks(rotation='vertical')
+# plt.legend(loc="lower right", frameon=False)
+# plt.show()
+
+# all_pageranks = {}
+# p_ids = []
+# match_outcomes = []
+# for match_id in all_copenhagen_match_ids:
+#     fname = str(match_id)
+#     match_OPTA = opta.read_OPTA_f7(fpath, fname)
+#     match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
+
+#     home_result = 0
+#     if match_OPTA.homegoals > match_OPTA.awaygoals:
+#         home_result = 1
+#     elif match_OPTA.awaygoals > match_OPTA.homegoals:
+#         home_result = -1
+
+#     home_or_away = "home"
+#     home_team = onet.get_team(match_OPTA, team="home")
+#     away_team = onet.get_team(match_OPTA, team="away")
+#     if home_team.team_id == copenhagen_team_id:
+#         match_outcomes.append(home_result)
+#     else:
+#         home_or_away = "away"
+#         match_outcomes.append(-home_result)
+
+#     pagerank = onet.get_pagerank(match_OPTA, team=home_or_away)
+#     print(match_id, pagerank)
+#     all_pageranks[match_id] = pagerank
+
+#     p_ids.extend(pagerank.keys())
+
+# x = [str(match_id) for match_id in all_copenhagen_match_ids]
+# player_ids = list(set(p_ids))
+# ys = {p_id: [all_pageranks.get(match_id).get(p_id) for match_id in all_copenhagen_match_ids] for p_id in player_ids}
 
 # color_digits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
 
@@ -139,18 +203,18 @@ copenhagen_team_id = 569
 # plt.legend(loc="lower right", frameon=False)
 # plt.show()
 
-
 # PLOT AND SAVE ALL WEIGHTED PASSING NETWORKS
-for match_id in all_copenhagen_match_ids:
-    fname = str(match_id)
-    match_OPTA = opta.read_OPTA_f7(fpath, fname)
-    match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
-    home_or_away = "home"
-    home_team_id = onet.get_team(match_OPTA, team="home").team_id
-    if home_team_id != copenhagen_team_id:
-        home_or_away = "away"
-    onet.map_weighted_passing_network(match_OPTA, team=home_or_away, exclude_subs=True, use_triplets=True, block=False)
-#     plt.savefig("weighted_networks_nosubs_triplets/{}_weighted_network.png".format(fname), format='png')
+# for match_id in all_copenhagen_match_ids:
+#     fname = str(match_id)
+#     match_OPTA = opta.read_OPTA_f7(fpath, fname)
+#     match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
+#     home_or_away = "home"
+#     home_team_id = onet.get_team(match_OPTA, team="home").team_id
+#     if home_team_id != copenhagen_team_id:
+#         home_or_away = "away"
+#     print(onet.find_player_triplets(match_OPTA, team=home_or_away, exclude_subs=True))
+#     onet.map_weighted_passing_network(match_OPTA, team=home_or_away, exclude_subs=True, use_triplets=True, block=True)
+#     # plt.savefig("weighted_networks_nosubs_triplets/{}_weighted_network.png".format(fname), format='png')
 #     plt.clf()
 
 # ovis.plot_all_shots(match_OPTA, plotly=False)
