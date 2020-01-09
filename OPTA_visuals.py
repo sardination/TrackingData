@@ -474,14 +474,15 @@ def plot_passing_network(match_OPTA, weighting="regular", team="home", relative_
 
     for player in mapped_players:
         shrink_factor = 0.25
-        # fig, ax, pt = utils.plot_bivariate_normal(
-        #     [player.x, player.y],
-        #     player.cov * shrink_factor**2,
-        #     figax=(fig, ax)
-        # )
+        fig, ax, pt = utils.plot_bivariate_normal(
+            [player.x, player.y],
+            player.cov * shrink_factor**2,
+            figax=(fig, ax)
+        )
         ax.plot([player.x, player.y])
         ax.annotate(
-            team_object.player_map[player.id].lastname,
+            # team_object.player_map[player.id].lastname,
+            player.id,
             (player.x, player.y)
         )
 

@@ -5,7 +5,6 @@ Created on Tue Oct 29 12:09:00 2019
 @author: skandaswamy
 """
 
-from formations import Formation
 import OPTA as OPTA
 
 from itertools import combinations
@@ -223,6 +222,8 @@ def get_clustering_coefficients(mapped_players, pass_map, weighted=True):
             (adjacency_matrix + adjacency_matrix.T), 3)
         ) / (2 * (degrees * (degrees - 1) - 2 * degrees_inout))
 
+    coeffs[coeffs == np.inf] = 0
+
     return {p_id : coeff for p_id, coeff in zip(mapped_players, coeffs)}
 
 
@@ -286,7 +287,7 @@ def get_pagerank(match_OPTA, team="home"):
             pagerank_graph.add_edge(p_id, r_id, weight=n_passes)
 
     # alphas = [p_values[player_id] for player_id in pagerank_graph.nodes()]
-    alpha = sum([v for _, v in p_values.items()]) / len(p_values.keys())
+    alpha = 1 - sum([v for _, v in p_values.items()]) / len(p_values.keys())
 
     pageranks = nx.pagerank_numpy(
         pagerank_graph,
@@ -486,6 +487,7 @@ def map_network_by_formation(match_OPTA, formation):
         match_OPTA (OPTAmatch): match OPTA information
         formation (Formation): formation information for relevant team
     """
+    # from formations import Formation
 
     G = formation.get_formation_graph()
 
@@ -579,13 +581,13 @@ def plot_passes_vs_dist(match_OPTA, team="home", exclude_subs=False):
     plt.plot(points[:,0], points[:,1], 'bo')
     plt.show()
 
-    return pairs, points
+    return points
 
 
 def determine_similarity(matches_OPTA, team_id, exclude_subs=False):
     """
     TODO: INCOMPLETE
-    Find similarity between two matchs based on the weight differences between all possible
+    Find similarity between two matches based on the weight differences between all possible
     pairs of players
 
     Args:
@@ -596,7 +598,7 @@ def determine_similarity(matches_OPTA, team_id, exclude_subs=False):
         exclude_subs (bool): whether to exclude subs in the list of players being evaluated
     """
 
-    match_weights = {}
+    match_weights = []
 
     for match in matches_OPTA:
         team = None
@@ -610,6 +612,33 @@ def determine_similarity(matches_OPTA, team_id, exclude_subs=False):
         else:
             continue
 
-        pairs, points = plot_passes_vs_dist(match, team=team_str, exclude_subs=exclude_subs)
+        # points = plot_passes_vs_dist(match, team=team_str, exclude_subs=exclude_subs)
+        # players are "deidentified" between matches: a node with the same player ID between
+        #   two matches does not indicate that this is the same player role between the two matches
 
+        pass_map = get_all_pass_destinations(match, team=team_str, exclude_subs=exclude_subs)
+        total_player_passes = {
+            player_id : sum([pass_map[player_id][r_id]['num_passes'] + pass_map[r_id][player_id]['num_passes']
+                for r_id in pass_map.keys()])
+            for player_id in pass_map.keys()
+        }
 
+        pairs = combinations([p_id for p_id in pass_map.keys()], 2)
+
+        pair_weights = []
+        for pair in pairs:
+            if total_player_passes[pair[0]] * total_player_passes[pair[1]] == 0:
+                weight = 0
+            else:
+                weight = (
+                    pass_map[pair[0]][pair[1]]['num_passes'] + pass_map[pair[1]][pair[0]]['num_passes']
+                ) / (total_player_passes[pair[0]] * total_player_passes[pair[1]])
+                pair_weights.append((pair, weight))
+
+        sorted_pair_weights = sorted(pair_weights, key=lambda p:-p[1])
+        # match_weights[match] = sorted_pair_weights
+        match_weights.append(sorted_pair_weights)
+        print(sorted_pair_weights)
+        print()
+
+    return match_weights
