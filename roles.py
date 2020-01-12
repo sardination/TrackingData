@@ -123,6 +123,33 @@ def generate_total_graph(fpath, match_ids, team_id, weighted=False):
     return total_graph
 
 
+def generate_graph_from_csv(filepath, weighted=False):
+    """
+    Generate a complete graph from edge information in given csv file
+
+    Args:
+        filepath (str): path to CSV file
+    Kwargs:
+        weighted (bool): whether the graph edges in the file are weighted or not
+
+    Returns:
+        graph (nx.Graph): the graph of all the edges listed in the file
+    """
+
+    graph = nx.Graph()
+
+    with open(filepath, 'r') as csvfile:
+        csvreader = csv.reader(csvfile)
+        if weighted:
+            for row in csvreader:
+                graph.add_edge(int(row[0]), int(row[1]), weight=int(row[2]))
+        else:
+            for row in csvreader:
+                graph.add_edge(int(row[0]), int(row[1]))
+
+    return graph
+
+
 def get_roles_from_graph(graph, roles_file=None, percentages_file=None):
     """
     Use `graphrole` package to extract roles from the large team match graph
@@ -139,6 +166,8 @@ def get_roles_from_graph(graph, roles_file=None, percentages_file=None):
     print('extracting features')
     feature_extractor = RecursiveFeatureExtractor(graph)
     features = feature_extractor.extract_features()
+    import ipdb
+    ipdb.set_trace()
 
     print('extracting roles')
     role_extractor = RoleExtractor(n_roles=None)
@@ -244,12 +273,15 @@ copenhagen_team_id = 569
 # show_ids_with_roles(num_to_id, num_to_role)
 
 # WEIGHTED
-generate_graph_csv(fpath, all_copenhagen_match_ids, copenhagen_team_id, weighted=True)
-graph = generate_total_graph(fpath, all_copenhagen_match_ids, copenhagen_team_id, weighted=True)
-role_extractor = get_roles_from_graph(graph, roles_file="569_weighted_roles.csv", percentages_file="569_weighted_role_percentages.csv")
+# generate_graph_csv(fpath, all_copenhagen_match_ids, copenhagen_team_id, weighted=True)
+# graph = generate_total_graph(fpath, all_copenhagen_match_ids, copenhagen_team_id, weighted=True)
+# role_extractor = get_roles_from_graph(graph, roles_file="569_weighted_roles.csv", percentages_file="569_weighted_role_percentages.csv")
 
-num_to_id = dict_from_csv('569_weighted_largenetwork_key.csv')
-num_to_role = dict_from_csv('569_weighted_roles.csv')
-show_ids_with_roles(num_to_id, num_to_role)
+# num_to_id = dict_from_csv('569_weighted_largenetwork_key.csv')
+# num_to_role = dict_from_csv('569_weighted_roles.csv')
+# show_ids_with_roles(num_to_id, num_to_role)
 
+# TODO: check what the features dataframe looks like and try using clustering coefficient as a feature
+graph = generate_graph_from_csv("569_weighted_largenetwork.csv", weighted=True)
+role_extractor = get_roles_from_graph(graph)
 
