@@ -64,7 +64,7 @@ def get_graph_edges(fpath, match_ids, team_id, weighted=False, with_clustering=F
             clustering_coeffs = onet.get_clustering_coefficients(mapped_player_ids, pass_map, weighted=True)
 
         for p_id, num in ids_to_nums.items():
-            num_to_id_key[num] = {'id': p_id}
+            num_to_id_key[num] = {'id': p_id, 'match_id': match_id}
             if with_clustering:
                 num_to_id_key[num]['clustering'] = clustering_coeffs[p_id]
 
@@ -97,8 +97,10 @@ def generate_graph_csv(fpath, match_ids, team_id, weighted=False, with_clusterin
 
     with open(key_filename, 'w') as csvfile:
         op_writer = csv.writer(csvfile)
-        for entry in num_to_id_key.items():
-            op_writer.writerow(entry)
+        for key, value_dict in num_to_id_key.items():
+            row_list = [key]
+            row_list.extend(value_dict.values())
+            op_writer.writerow(row_list)
 
     with open(output_filename, 'w') as csvfile:
         op_writer = csv.writer(csvfile)
@@ -188,8 +190,6 @@ def get_roles_from_graph(graph, roles_file=None, percentages_file=None):
     print('extracting features')
     feature_extractor = RecursiveFeatureExtractor(graph)
     features = feature_extractor.extract_features()
-    import ipdb
-    ipdb.set_trace()
 
     print('extracting roles')
     role_extractor = RoleExtractor(n_roles=None)
@@ -212,13 +212,15 @@ def get_roles_from_graph(graph, roles_file=None, percentages_file=None):
     return role_extractor
 
 
-def dict_from_csv(filename):
+def dict_from_csv(filename, keys=None):
     """
-    Generate a dictionary from 2-element CSV. The first element of each row is the
+    Generate a dictionary from CSV. The first element of each row is the
     dictionary key and the second element is the value.
 
     Args:
         filename (str): the CSV file to be read from
+    Kwargs:
+        keys (list of strs): the keys for the dict entries
 
     Returns:
         dictionary (dict): the extracted dictionary
@@ -228,7 +230,10 @@ def dict_from_csv(filename):
     with open(filename, 'r') as csvfile:
         csvreader = csv.reader(csvfile)
         for row in csvreader:
-            dictionary[row[0]] = row[1]
+            if keys is None:
+                dictionary[row[0]] = row[1]
+            else:
+                dictionary[row[0]] = {key : row[i + 1] for i, key in enumerate(keys)}
 
     return dictionary
 
@@ -243,7 +248,8 @@ def show_ids_with_roles(num_to_id, num_to_role):
     """
 
     id_to_nums = {}
-    for num, p_id in num_to_id.items():
+    for num, p_dict in num_to_id.items():
+        p_id = p_dict['id']
         if id_to_nums.get(p_id) is None:
             id_to_nums[p_id] = []
         id_to_nums[p_id].append(num)
@@ -251,7 +257,7 @@ def show_ids_with_roles(num_to_id, num_to_role):
     for p_id, nums in id_to_nums.items():
         print("---{}---".format(p_id))
         for n in nums:
-            print("{}: {}".format(n, num_to_role[n]['id']))
+            print("{}: {}".format(n, num_to_role[n]))
         print()
 
 
@@ -285,12 +291,13 @@ all_copenhagen_match_ids = [
 ]
 copenhagen_team_id = 569
 
+
 # UNWEIGHTED
 # generate_graph_csv(fpath, all_copenhagen_match_ids, copenhagen_team_id)
 # graph = generate_total_graph(fpath, all_copenhagen_match_ids, copenhagen_team_id)
 # role_extractor = get_roles_from_graph(graph, roles_file="569_roles.csv", percentages_file="569_role_percentages.csv")
 
-# num_to_id = dict_from_csv('569_largenetwork_key.csv')
+# num_to_id = dict_from_csv('569_largenetwork_key.csv', keys=['id', 'match_id'])
 # num_to_role = dict_from_csv('569_roles.csv')
 # show_ids_with_roles(num_to_id, num_to_role)
 
@@ -299,20 +306,31 @@ copenhagen_team_id = 569
 # graph = generate_total_graph(fpath, all_copenhagen_match_ids, copenhagen_team_id, weighted=True)
 # role_extractor = get_roles_from_graph(graph, roles_file="569_weighted_roles.csv", percentages_file="569_weighted_role_percentages.csv")
 
-# num_to_id = dict_from_csv('569_weighted_largenetwork_key.csv')
+# num_to_id = dict_from_csv('569_weighted_largenetwork_key.csv', keys=['id', 'match_id'])
 # num_to_role = dict_from_csv('569_weighted_roles.csv')
 # show_ids_with_roles(num_to_id, num_to_role)
 
-# TODO: check what the features dataframe looks like and try using clustering coefficient as a feature
 # graph = generate_graph_from_csv("569_weighted_largenetwork.csv", weighted=True)
 # role_extractor = get_roles_from_graph(graph)
 
-# CLUSTERING
-generate_graph_csv(fpath, all_copenhagen_match_ids, copenhagen_team_id, with_clustering=True)
-graph = generate_total_graph(fpath, all_copenhagen_match_ids, copenhagen_team_id, with_clustering=True)
-role_extractor = get_roles_from_graph(graph, roles_file="569_clustered_roles.csv", percentages_file="569_clustered_role_percentages.csv")
-
-num_to_id = dict_from_csv('569_clustered_largenetwork_key.csv')
-num_to_role = dict_from_csv('569_clustered_roles.csv')
+num_to_id = dict_from_csv('569_weighted_largenetwork_key.csv', keys=['id', 'match_id'])
+num_to_role = dict_from_csv('569_weighted_roles.csv')
 show_ids_with_roles(num_to_id, num_to_role)
+
+# TODO: observe roles based on match, not just player
+for match_id in all_copenhagen_match_ids:
+    print("-- MATCH {} --".format(match_id))
+    for num, p_dict in num_to_id.items():
+        if int(p_dict['match_id']) == match_id:
+            print("{}: {}".format(p_dict['id'], num_to_role[num]))
+
+# CLUSTERING
+# TODO: adjust how roles are learned (which features are used)
+# generate_graph_csv(fpath, all_copenhagen_match_ids, copenhagen_team_id, with_clustering=True)
+# graph = generate_total_graph(fpath, all_copenhagen_match_ids, copenhagen_team_id, with_clustering=True)
+# role_extractor = get_roles_from_graph(graph, roles_file="569_clustered_roles.csv", percentages_file="569_clustered_role_percentages.csv")
+
+# num_to_id = dict_from_csv('569_clustered_largenetwork_key.csv', keys=['id', 'match_id', 'clustering'])
+# num_to_role = dict_from_csv('569_clustered_roles.csv')
+# show_ids_with_roles(num_to_id, num_to_role)
 
