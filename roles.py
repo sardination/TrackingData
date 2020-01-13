@@ -11,7 +11,7 @@ from graphrole import (
 )
 
 
-def get_graph_edges(fpath, match_ids, team_id, weighted=False):
+def get_graph_edges(fpath, match_ids, team_id, weighted=False, with_clustering=False):
     """
     Returns the edges and the node to player_id key
 
@@ -21,6 +21,7 @@ def get_graph_edges(fpath, match_ids, team_id, weighted=False):
         team_id (int): team ID being evaluated
     Kwargs:
         weighted (bool): whether to weight the graph edges based on the number of passes between players
+        with_clustering (bool): whether to include the clustering coefficient for each player node
 
     Returns:
         edges (list of tuples): list of edges (passer_id, receiver_id [, weight if weighted=True])
@@ -58,13 +59,19 @@ def get_graph_edges(fpath, match_ids, team_id, weighted=False):
                         node_pair = (ids_to_nums[p_id], ids_to_nums[r_id], pass_map[p_id][r_id]['num_passes'])
                     edges.append(node_pair)
 
-        for id, num in ids_to_nums.items():
-            num_to_id_key[num] = id
+        clustering_coeffs = None
+        if with_clustering:
+            clustering_coeffs = onet.get_clustering_coefficients(mapped_player_ids, pass_map, weighted=True)
+
+        for p_id, num in ids_to_nums.items():
+            num_to_id_key[num] = {'id': p_id}
+            if with_clustering:
+                num_to_id_key[num]['clustering'] = clustering_coeffs[p_id]
 
     return edges, num_to_id_key
 
 
-def generate_graph_csv(fpath, match_ids, team_id, weighted=False):
+def generate_graph_csv(fpath, match_ids, team_id, weighted=False, with_clustering=False):
     """
     Generate a CSV file from team and match info
 
@@ -82,7 +89,11 @@ def generate_graph_csv(fpath, match_ids, team_id, weighted=False):
         key_filename = '{team_id}_weighted_largenetwork_key.csv'.format(team_id=team_id)
         output_filename = '{team_id}_weighted_largenetwork.csv'.format(team_id=team_id)
 
-    edges, num_to_id_key = get_graph_edges(fpath, match_ids, team_id, weighted=weighted)
+    if with_clustering:
+        key_filename = '{team_id}_clustered_largenetwork_key.csv'.format(team_id=team_id)
+        output_filename = '{team_id}_clustered_largenetwork.csv'.format(team_id=team_id)
+
+    edges, num_to_id_key = get_graph_edges(fpath, match_ids, team_id, weighted=weighted, with_clustering=with_clustering)
 
     with open(key_filename, 'w') as csvfile:
         op_writer = csv.writer(csvfile)
@@ -95,7 +106,7 @@ def generate_graph_csv(fpath, match_ids, team_id, weighted=False):
             op_writer.writerow(edge)
 
 
-def generate_total_graph(fpath, match_ids, team_id, weighted=False):
+def generate_total_graph(fpath, match_ids, team_id, weighted=False, with_clustering=False):
     """
     Generate a complete graph of all matches based on matches and team ID
 
@@ -105,21 +116,30 @@ def generate_total_graph(fpath, match_ids, team_id, weighted=False):
         team_id (int): team ID being evaluated
     Kwargs:
         weighted (bool): whether to weight the graph edges based on the number of passes between players
+        with_clustering (bool): whether to include the clustering coefficient for each player node
 
     Returns:
         total_graph (nx.Graph): the total graph of all the listed matches played by the given team
     """
     print('getting edges')
-    edges, num_to_id_key = get_graph_edges(fpath, match_ids, team_id, weighted=weighted)
+    edges, num_to_id_key = get_graph_edges(fpath, match_ids, team_id, weighted=weighted, with_clustering=with_clustering)
 
     print('generating graph')
-    if weighted:
-        total_graph = nx.Graph()
-        for p_id, r_id, w in edges:
-            total_graph.add_edge(p_id, r_id, weight=w)
+    if not weighted and not with_clustering:
+        total_graph = nx.from_edgelist(edges)
         return total_graph
 
-    total_graph = nx.from_edgelist(edges)
+    total_graph = nx.Graph()
+    if weighted:
+        for p_id, r_id, w in edges:
+            total_graph.add_edge(p_id, r_id, weight=w)
+    else:
+        total_graph = nx.from_edgelist(edges)
+    if with_clustering:
+        for p_id in total_graph.nodes():
+            # total_graph[p_id]['clustering'] = num_to_id_key[p_id]['clustering']
+            nx.set_node_attributes(total_graph, {p_id: num_to_id_key[p_id]['clustering']}, 'clustering')
+
     return total_graph
 
 
@@ -134,6 +154,8 @@ def generate_graph_from_csv(filepath, weighted=False):
 
     Returns:
         graph (nx.Graph): the graph of all the edges listed in the file
+
+    TODO: use clustering from key as well
     """
 
     graph = nx.Graph()
@@ -229,7 +251,7 @@ def show_ids_with_roles(num_to_id, num_to_role):
     for p_id, nums in id_to_nums.items():
         print("---{}---".format(p_id))
         for n in nums:
-            print("{}: {}".format(n, num_to_role[n]))
+            print("{}: {}".format(n, num_to_role[n]['id']))
         print()
 
 
@@ -282,6 +304,15 @@ copenhagen_team_id = 569
 # show_ids_with_roles(num_to_id, num_to_role)
 
 # TODO: check what the features dataframe looks like and try using clustering coefficient as a feature
-graph = generate_graph_from_csv("569_weighted_largenetwork.csv", weighted=True)
-role_extractor = get_roles_from_graph(graph)
+# graph = generate_graph_from_csv("569_weighted_largenetwork.csv", weighted=True)
+# role_extractor = get_roles_from_graph(graph)
+
+# CLUSTERING
+generate_graph_csv(fpath, all_copenhagen_match_ids, copenhagen_team_id, with_clustering=True)
+graph = generate_total_graph(fpath, all_copenhagen_match_ids, copenhagen_team_id, with_clustering=True)
+role_extractor = get_roles_from_graph(graph, roles_file="569_clustered_roles.csv", percentages_file="569_clustered_role_percentages.csv")
+
+num_to_id = dict_from_csv('569_clustered_largenetwork_key.csv')
+num_to_role = dict_from_csv('569_clustered_roles.csv')
+show_ids_with_roles(num_to_id, num_to_role)
 
