@@ -108,7 +108,7 @@ def get_substitutes(match_OPTA, team="home"):
     return substitutes_on, substitutes_off
 
 
-def get_mapped_players(match_OPTA, team="home", exclude_subs=False):
+def get_mapped_players(match_OPTA, team="home", exclude_subs=False, half=0):
     """
     Find which players have had a role in the game and should be mapped
 
@@ -117,13 +117,14 @@ def get_mapped_players(match_OPTA, team="home", exclude_subs=False):
     Kwargs:
         team (string): "home" or "away"
         exclude_subs (bool): whether to exclude substitutes from the map
+        half (int): half from which to select players (1 or 2), whole game if otherwise
 
     Return:
         mapped_players (set)
     """
 
     team_object = get_team(match_OPTA, team=team)
-    events_raw = [e for e in team_object.events if e.is_pass or e.is_shot]
+    events_raw = [e for e in team_object.events if (e.is_pass or e.is_shot) and (half not in [1,2] or half == e.period_id)]
 
     exclude_players = get_substitutes(match_OPTA, team=team)[0] if exclude_subs else []
 
@@ -298,7 +299,7 @@ def get_pagerank(match_OPTA, team="home"):
     return pageranks
 
 
-def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False):
+def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False, half=0):
     """
     Generate a dictionary of dictionaries where d[p_id1][p_id2] is the number of
     passes from p_id1 to p_id2
@@ -308,13 +309,14 @@ def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False):
     Kwargs:
         team (string): "home" or "away"
         exclude_subs (bool): whether to exclude substitutes from the map
+        half (int): 1 for first half, 2 for second half, all else means full match
     """
 
     team_object = get_team(match_OPTA, team=team)
-    events_raw = [e for e in team_object.events if e.is_pass or e.is_shot]
+    events_raw = [e for e in team_object.events if (e.is_pass or e.is_shot) and (half not in [1,2] or half == e.period_id)]
 
     exclude_players = get_substitutes(match_OPTA, team=team)[0] if exclude_subs else []
-    mapped_players = get_mapped_players(match_OPTA, team=team, exclude_subs=exclude_subs)
+    mapped_players = get_mapped_players(match_OPTA, team=team, exclude_subs=exclude_subs, half=half)
 
     pass_map = {p_id: {r_id: {
                     "num_passes": 0,

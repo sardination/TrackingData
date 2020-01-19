@@ -11,7 +11,7 @@ from graphrole import (
 )
 
 
-def get_graph_edges(fpath, match_ids, team_id, weighted=False, with_clustering=False):
+def get_graph_edges(fpath, match_ids, team_id, weighted=False, with_clustering=False, halves=False):
     """
     Returns the edges and the node to player_id key
 
@@ -22,6 +22,7 @@ def get_graph_edges(fpath, match_ids, team_id, weighted=False, with_clustering=F
     Kwargs:
         weighted (bool): whether to weight the graph edges based on the number of passes between players
         with_clustering (bool): whether to include the clustering coefficient for each player node
+        halves (bool): whether to split each match into separate halves
 
     Returns:
         edges (list of tuples): list of edges (passer_id, receiver_id [, weight if weighted=True])
@@ -44,34 +45,41 @@ def get_graph_edges(fpath, match_ids, team_id, weighted=False, with_clustering=F
             home_or_away = "away"
             this_team = away_team
 
-        pass_map = onet.get_all_pass_destinations(match_OPTA, team=home_or_away, exclude_subs=False)
-        # mapped_player_ids = this_team.player_map.keys()
-        mapped_player_ids = pass_map.keys()
+        period_ids = [0]
+        if halves:
+            period_ids = [1,2]
 
-        ids_to_nums = {p_id : node_num + i for i, p_id in enumerate(mapped_player_ids)}
-        node_num += len(mapped_player_ids)
+        for half in period_ids:
+            pass_map = onet.get_all_pass_destinations(match_OPTA, team=home_or_away, exclude_subs=False, half=half)
+            # mapped_player_ids = this_team.player_map.keys()
+            mapped_player_ids = pass_map.keys()
 
-        for p_id in pass_map.keys():
-            for r_id in pass_map.keys():
-                if pass_map[p_id][r_id]['num_passes'] > 0:
-                    node_pair = (ids_to_nums[p_id], ids_to_nums[r_id])
-                    if weighted:
-                        node_pair = (ids_to_nums[p_id], ids_to_nums[r_id], pass_map[p_id][r_id]['num_passes'])
-                    edges.append(node_pair)
+            ids_to_nums = {p_id : node_num + i for i, p_id in enumerate(mapped_player_ids)}
+            node_num += len(mapped_player_ids)
 
-        clustering_coeffs = None
-        if with_clustering:
-            clustering_coeffs = onet.get_clustering_coefficients(mapped_player_ids, pass_map, weighted=True)
+            for p_id in pass_map.keys():
+                for r_id in pass_map.keys():
+                    if pass_map[p_id][r_id]['num_passes'] > 0:
+                        node_pair = (ids_to_nums[p_id], ids_to_nums[r_id])
+                        if weighted:
+                            node_pair = (ids_to_nums[p_id], ids_to_nums[r_id], pass_map[p_id][r_id]['num_passes'])
+                        edges.append(node_pair)
 
-        for p_id, num in ids_to_nums.items():
-            num_to_id_key[num] = {'id': p_id, 'match_id': match_id}
+            clustering_coeffs = None
             if with_clustering:
-                num_to_id_key[num]['clustering'] = clustering_coeffs[p_id]
+                clustering_coeffs = onet.get_clustering_coefficients(mapped_player_ids, pass_map, weighted=True)
+
+            for p_id, num in ids_to_nums.items():
+                num_to_id_key[num] = {'id': p_id, 'match_id': match_id}
+                if with_clustering:
+                    num_to_id_key[num]['clustering'] = clustering_coeffs[p_id]
+                if halves:
+                    num_to_id_key[num]['half'] = half
 
     return edges, num_to_id_key
 
 
-def generate_graph_csv(fpath, match_ids, team_id, weighted=False, with_clustering=False):
+def generate_graph_csv(fpath, match_ids, team_id, weighted=False, with_clustering=False, halves=False, name_append=""):
     """
     Generate a CSV file from team and match info
 
@@ -81,19 +89,32 @@ def generate_graph_csv(fpath, match_ids, team_id, weighted=False, with_clusterin
         team_id (int): team ID being evaluated
     Kwargs:
         weighted (bool): whether to weight the graph edges based on the number of passes between players
+        with_clustering (bool): whether to include the clustering coefficient for each player node
+        halves (bool): whether to split each match into separate halves
+        name_append (str): a string to insert into the csv filenames
     """
-    key_filename = '{team_id}_largenetwork_key.csv'.format(team_id=team_id)
-    output_filename = '{team_id}_largenetwork.csv'.format(team_id=team_id)
+    if name_append != "":
+        name_append = "_{}".format(name_append)
 
-    if weighted:
-        key_filename = '{team_id}_weighted_largenetwork_key.csv'.format(team_id=team_id)
-        output_filename = '{team_id}_weighted_largenetwork.csv'.format(team_id=team_id)
+    key_filename = '{team_id}{name_append}_largenetwork_key.csv'.format(team_id=team_id, name_append=name_append)
+    output_filename = '{team_id}{name_append}_largenetwork.csv'.format(team_id=team_id, name_append=name_append)
 
-    if with_clustering:
-        key_filename = '{team_id}_clustered_largenetwork_key.csv'.format(team_id=team_id)
-        output_filename = '{team_id}_clustered_largenetwork.csv'.format(team_id=team_id)
+    # if weighted:
+    #     key_filename = '{team_id}_weighted_largenetwork_key.csv'.format(team_id=team_id)
+    #     output_filename = '{team_id}_weighted_largenetwork.csv'.format(team_id=team_id)
 
-    edges, num_to_id_key = get_graph_edges(fpath, match_ids, team_id, weighted=weighted, with_clustering=with_clustering)
+    # if with_clustering:
+    #     key_filename = '{team_id}_clustered_largenetwork_key.csv'.format(team_id=team_id)
+    #     output_filename = '{team_id}_clustered_largenetwork.csv'.format(team_id=team_id)
+
+    edges, num_to_id_key = get_graph_edges(
+        fpath,
+        match_ids,
+        team_id,
+        weighted=weighted,
+        with_clustering=with_clustering,
+        halves=halves
+    )
 
     with open(key_filename, 'w') as csvfile:
         op_writer = csv.writer(csvfile)
@@ -108,7 +129,7 @@ def generate_graph_csv(fpath, match_ids, team_id, weighted=False, with_clusterin
             op_writer.writerow(edge)
 
 
-def generate_total_graph(fpath, match_ids, team_id, weighted=False, with_clustering=False):
+def generate_total_graph(fpath, match_ids, team_id, weighted=False, with_clustering=False, halves=False):
     """
     Generate a complete graph of all matches based on matches and team ID
 
@@ -119,12 +140,20 @@ def generate_total_graph(fpath, match_ids, team_id, weighted=False, with_cluster
     Kwargs:
         weighted (bool): whether to weight the graph edges based on the number of passes between players
         with_clustering (bool): whether to include the clustering coefficient for each player node
+        halves (bool): whether to split matches into halves, treating each half separately
 
     Returns:
         total_graph (nx.Graph): the total graph of all the listed matches played by the given team
     """
     print('getting edges')
-    edges, num_to_id_key = get_graph_edges(fpath, match_ids, team_id, weighted=weighted, with_clustering=with_clustering)
+    edges, num_to_id_key = get_graph_edges(
+        fpath,
+        match_ids,
+        team_id,
+        weighted=weighted,
+        with_clustering=with_clustering,
+        halves=halves
+    )
 
     print('generating graph')
     if not weighted and not with_clustering:
@@ -261,6 +290,33 @@ def show_ids_with_roles(num_to_id, num_to_role):
         print()
 
 
+def show_player_roles_from_match_id(num_to_id, num_to_role, match_id, half=None):
+    """
+    Display the roles that each player played in a match (or match half)
+
+    Args:
+        num_to_id (dict): dictionary mapping large graph node numbers to player IDs
+        num_to_role (dict): dictionary mapping large graph node numbers to roles
+
+    Kwargs:
+        half (int): which half, 1 or 2, to display mappings for
+    """
+
+    # for num, p_dict in num_to_id.items():
+    # iterate through node nums sorted by player id
+    for num in sorted(num_to_id.keys(), key=lambda n:num_to_id[n]['id']):
+        p_dict = num_to_id[num]
+
+        if int(p_dict['match_id']) != match_id:
+            continue
+
+        p_half = p_dict.get('half')
+        if p_half and half in [1,2] and int(p_half) != half:
+            continue
+
+        print("{}: {}".format(p_dict['id'], num_to_role[num]))
+
+
 fpath = "../Copenhagen/"
 all_copenhagen_match_ids = [
     984459,
@@ -302,7 +358,7 @@ copenhagen_team_id = 569
 # show_ids_with_roles(num_to_id, num_to_role)
 
 # WEIGHTED
-# generate_graph_csv(fpath, all_copenhagen_match_ids, copenhagen_team_id, weighted=True)
+# generate_graph_csv(fpath, all_copenhagen_match_ids, copenhagen_team_id, weighted=True, name_append="weighted")
 # graph = generate_total_graph(fpath, all_copenhagen_match_ids, copenhagen_team_id, weighted=True)
 # role_extractor = get_roles_from_graph(graph, roles_file="569_weighted_roles.csv", percentages_file="569_weighted_role_percentages.csv")
 
@@ -313,24 +369,52 @@ copenhagen_team_id = 569
 # graph = generate_graph_from_csv("569_weighted_largenetwork.csv", weighted=True)
 # role_extractor = get_roles_from_graph(graph)
 
-num_to_id = dict_from_csv('569_weighted_largenetwork_key.csv', keys=['id', 'match_id'])
-num_to_role = dict_from_csv('569_weighted_roles.csv')
-show_ids_with_roles(num_to_id, num_to_role)
+# num_to_id = dict_from_csv('569_weighted_largenetwork_key.csv', keys=['id', 'match_id'])
+# num_to_role = dict_from_csv('569_weighted_roles.csv')
+# show_ids_with_roles(num_to_id, num_to_role)
 
 # TODO: observe roles based on match, not just player
-for match_id in all_copenhagen_match_ids:
-    print("-- MATCH {} --".format(match_id))
-    for num, p_dict in num_to_id.items():
-        if int(p_dict['match_id']) == match_id:
-            print("{}: {}".format(p_dict['id'], num_to_role[num]))
+# for match_id in all_copenhagen_match_ids:
+#     print("-- MATCH {} --".format(match_id))
+#     for num, p_dict in num_to_id.items():
+#         if int(p_dict['match_id']) == match_id:
+#             print("{}: {}".format(p_dict['id'], num_to_role[num]))
 
 # CLUSTERING
 # TODO: adjust how roles are learned (which features are used)
-# generate_graph_csv(fpath, all_copenhagen_match_ids, copenhagen_team_id, with_clustering=True)
+# generate_graph_csv(fpath, all_copenhagen_match_ids, copenhagen_team_id, with_clustering=True, name_append="clustered")
 # graph = generate_total_graph(fpath, all_copenhagen_match_ids, copenhagen_team_id, with_clustering=True)
 # role_extractor = get_roles_from_graph(graph, roles_file="569_clustered_roles.csv", percentages_file="569_clustered_role_percentages.csv")
 
 # num_to_id = dict_from_csv('569_clustered_largenetwork_key.csv', keys=['id', 'match_id', 'clustering'])
 # num_to_role = dict_from_csv('569_clustered_roles.csv')
 # show_ids_with_roles(num_to_id, num_to_role)
+
+# WEIGHTED + MATCH HALVES
+# generate_graph_csv(fpath, all_copenhagen_match_ids, copenhagen_team_id, weighted=True, halves=True, name_append="weighted_halves")
+# graph = generate_total_graph(fpath, all_copenhagen_match_ids, copenhagen_team_id, weighted=True, halves=True)
+# role_extractor = get_roles_from_graph(graph, roles_file="569_weighted_halves_roles.csv", percentages_file="569_weighted_halves_role_percentages.csv")
+
+num_to_id = dict_from_csv('569_weighted_halves_largenetwork_key.csv', keys=['id', 'match_id', 'half'])
+num_to_role = dict_from_csv('569_weighted_halves_roles.csv')
+show_ids_with_roles(num_to_id, num_to_role)
+for match_id in all_copenhagen_match_ids:
+    for half in [1,2]:
+        print("-------- {} - {} --------".format(match_id, half))
+        show_player_roles_from_match_id(num_to_id, num_to_role, match_id, half=half)
+        print()
+
+# graph = generate_graph_from_csv("569_weighted_largenetwork.csv", weighted=True)
+# role_extractor = get_roles_from_graph(graph)
+
+# num_to_id = dict_from_csv('569_weighted_largenetwork_key.csv', keys=['id', 'match_id'])
+# num_to_role = dict_from_csv('569_weighted_roles.csv')
+# show_ids_with_roles(num_to_id, num_to_role)
+
+# TODO: observe roles based on match, not just player
+# for match_id in all_copenhagen_match_ids:
+#     print("-- MATCH {} --".format(match_id))
+#     for num, p_dict in num_to_id.items():
+#         if int(p_dict['match_id']) == match_id:
+#             print("{}: {}".format(p_dict['id'], num_to_role[num]))
 

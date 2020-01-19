@@ -36,33 +36,38 @@ copenhagen_team_id = 569
 
 all_copenhagen_match_ids = [984514, 984567]
 
-all_matches = []
-all_pageranked_players = []
-for match_id in all_copenhagen_match_ids:
-    fname = str(match_id)
-    match_OPTA = opta.read_OPTA_f7(fpath, fname)
-    match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
-    all_matches.append(match_OPTA)
+# PAGERANK SORTING
 
-    home_or_away = "home"
-    home_team = onet.get_team(match_OPTA, team="home")
-    away_team = onet.get_team(match_OPTA, team="away")
-    if home_team.team_id != copenhagen_team_id:
-        home_or_away = "away"
+# all_matches = []
+# all_pageranked_players = []
+# for match_id in all_copenhagen_match_ids:
+#     fname = str(match_id)
+#     match_OPTA = opta.read_OPTA_f7(fpath, fname)
+#     match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
+#     all_matches.append(match_OPTA)
 
-    pagerank = onet.get_pagerank(match_OPTA, team=home_or_away)
-    sorted_players = sorted([(p_id, pr) for p_id, pr in pagerank.items()], key=lambda t:-t[1])
-    all_pageranked_players.append(sorted_players)
+#     home_or_away = "home"
+#     home_team = onet.get_team(match_OPTA, team="home")
+#     away_team = onet.get_team(match_OPTA, team="away")
+#     if home_team.team_id != copenhagen_team_id:
+#         home_or_away = "away"
 
-match_weights = onet.determine_similarity(all_matches, copenhagen_team_id, exclude_subs=True)
-for pairs in zip(*match_weights):
-    for pair in pairs:
-        print(pair)
-    print()
+#     pagerank = onet.get_pagerank(match_OPTA, team=home_or_away)
+#     sorted_players = sorted([(p_id, pr) for p_id, pr in pagerank.items()], key=lambda t:-t[1])
+#     all_pageranked_players.append(sorted_players)
 
-for players in zip(*all_pageranked_players):
-    print(players)
-    print()
+# match_weights = onet.determine_similarity(all_matches, copenhagen_team_id, exclude_subs=True)
+# for pairs in zip(*match_weights):
+#     for pair in pairs:
+#         print(pair)
+#     print()
+
+# for players in zip(*all_pageranked_players):
+#     print(players)
+#     print()
+
+
+# PRINT MATCH OUTCOMES
 
 # for match_id in all_copenhagen_match_ids:
 #     fname = str(match_id)
@@ -84,6 +89,9 @@ for players in zip(*all_pageranked_players):
 #         print("Copenhagen: {} v {}".format(match_OPTA.awaygoals, match_OPTA.homegoals))
 
 #     print()
+
+
+# NETWORK VISUALIZATION METHODS
 
 # copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv')
 # for match_id in all_copenhagen_match_ids:
@@ -133,25 +141,33 @@ for players in zip(*all_pageranked_players):
 
 ###
 
-# copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv')
+
+# SHOW NETWORK WITH NODES POSITIONED BY FORMATION
+
+copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv')
 
 # test_f = copenhagen_formations[1]
 # test_f.get_formation_graph()
 
-# all_copenhagen_match_ids = [984567]
+all_copenhagen_match_ids = [984459]
 
 # for match_id in all_copenhagen_match_ids:
-# for formation in copenhagen_formations:
-#     match_id = formation.match_id
-#     fname = str(match_id)
-#     match_OPTA = opta.read_OPTA_f7(fpath, fname)
-#     match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
+for formation in copenhagen_formations:
+    match_id = formation.match_id
 
-#     home_or_away = "home"
-#     home_team = onet.get_team(match_OPTA, team="home")
-#     away_team = onet.get_team(match_OPTA, team="away")
-#     if home_team.team_id != copenhagen_team_id:
-#         home_or_away = "away"
+    if match_id not in all_copenhagen_match_ids:
+        continue
 
-#     pass_map = onet.get_all_pass_destinations(match_OPTA, team=home_or_away, exclude_subs=False)
-#     formation.get_formation_graph(pass_map=pass_map)
+    fname = str(match_id)
+    match_OPTA = opta.read_OPTA_f7(fpath, fname)
+    match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
+
+    home_or_away = "home"
+    home_team = onet.get_team(match_OPTA, team="home")
+    away_team = onet.get_team(match_OPTA, team="away")
+    if home_team.team_id != copenhagen_team_id:
+        home_or_away = "away"
+
+    for period in [0,1,2]:
+        pass_map = onet.get_all_pass_destinations(match_OPTA, team=home_or_away, exclude_subs=False, half=period)
+        formation.get_formation_graph(pass_map=pass_map)

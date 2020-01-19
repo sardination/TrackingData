@@ -47,7 +47,12 @@ class Formation:
         max_node_size = 1200
         node_sizes = [(clustering_coeffs[n] ** 3 / max_clustering_coeff) * max_node_size for n in G.nodes()]
 
-        nx.draw_networkx_nodes(G, self.player_locations, node_size=node_sizes)
+        nx.draw_networkx_nodes(
+            G,
+            self.player_locations,
+            node_size=node_sizes,
+            node_color='blue'
+        )
         nx.draw_networkx_labels(
             G,
             self.player_locations,
