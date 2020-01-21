@@ -31,6 +31,17 @@ class Formation:
             self.goalkeeper = goalkeeper_id
             self.player_locations[goalkeeper_id] = (-45, 0)
 
+    def add_substitute(self, original_player, substitute_player):
+        """
+        Add the substitute to the formation graph, located near, but not replacing, the node of the
+        original player
+        """
+        original_location = self.player_locations[original_player]
+        y = 45
+        if original_location[0] < 0:
+            y = -45
+        self.player_locations[substitute_player] = (original_location[0], y)
+
     def get_formation_graph(self, pass_map=None):
         G = nx.Graph()
         player_ids = self.player_locations.keys()

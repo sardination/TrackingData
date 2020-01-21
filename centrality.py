@@ -59,11 +59,30 @@ for formation in copenhagen_formations:
     formation.add_team_object(team_object)
     formation.add_goalkeeper()
 
+    substitution_events = [e for e in team_object.events if e.is_substitution]
+
     # for period in [0,1,2]:
-    for period in [1]:
+    for period in [2]:
         pass_map = onet.get_all_pass_destinations(match_OPTA, team=home_or_away, exclude_subs=False, half=period)
         # TODO: ^^ fix connectedness by using substitutes for the appropriate players within the formation
         # graph = formation.get_formation_graph(pass_map=pass_map, directed=True)
+
+        # TODO: fix this to be correct between formations for halves of the same game
+        for i in substitution_events:
+            print(i.player_id)
+        period_subs = [e for e in substitution_events if e.period_id == period]
+        on_player = None
+        off_player = None
+        for e in period_subs:
+            if e.sub_direction == "on":
+                on_player = e.player_id
+            elif e.sub_direction == "off":
+                off_player = e.player_id
+
+            if on_player is not None and off_player is not None:
+                formation.add_substitute(off_player, on_player)
+                on_player = None
+                off_player = None
 
         graph = nx.Graph()
         mapped_players = pass_map.keys()
