@@ -45,7 +45,9 @@ class Formation:
         clustering_coeffs = onet.get_clustering_coefficients(pass_map.keys(), pass_map, weighted=True)
         max_clustering_coeff = max(clustering_coeffs.values()) ** 3 # ^ 3 to exaggerate effect
         max_node_size = 1200
-        node_sizes = [(clustering_coeffs[n] ** 3 / max_clustering_coeff) * max_node_size for n in G.nodes()]
+        node_sizes = [(clustering_coeffs[n] ** 3 / max_clustering_coeff) * max_node_size if clustering_coeffs.get(n) is not None else 0
+            for n in G.nodes()]
+        # TODO: accommodate this for subs
 
         nx.draw_networkx_nodes(
             G,
