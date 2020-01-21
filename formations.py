@@ -13,9 +13,23 @@ class Formation:
         self.player_locations = player_locations
         self.goalkeeper = None
 
-    def add_goalkeeper(self, goalkeeper_id):
-        self.goalkeeper = goalkeeper_id
-        self.player_locations[goalkeeper_id] = (-45, 0)
+        self.team_object = None
+
+    def add_team_object(self, team_object):
+        self.team_object = team_object
+
+    def add_goalkeeper(self, goalkeeper_id=None):
+        if goalkeeper_id is None:
+            if self.team_object is None:
+                raise("Need either goalkeeper id or team object")
+            else:
+                for p_id, p_obj in self.team_object.player_map.items():
+                    if p_obj.position == "Goalkeeper":
+                        self.goalkeeper = p_id
+                        self.player_locations[p_id] = (-45, 0)
+        else:
+            self.goalkeeper = goalkeeper_id
+            self.player_locations[goalkeeper_id] = (-45, 0)
 
     def get_formation_graph(self, pass_map=None):
         G = nx.Graph()

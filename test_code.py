@@ -149,7 +149,7 @@ copenhagen_formations = formations.read_formations_from_csv('../copenhagen_forma
 # test_f = copenhagen_formations[1]
 # test_f.get_formation_graph()
 
-all_copenhagen_match_ids = [984459]
+all_copenhagen_match_ids = [984567]
 
 # for match_id in all_copenhagen_match_ids:
 for formation in copenhagen_formations:
@@ -168,6 +168,16 @@ for formation in copenhagen_formations:
     if home_team.team_id != copenhagen_team_id:
         home_or_away = "away"
 
+    team_object = onet.get_team(match_OPTA, team=home_or_away)
+    formation.add_team_object(team_object)
+    formation.add_goalkeeper()
+
     for period in [0,1,2]:
         pass_map = onet.get_all_pass_destinations(match_OPTA, team=home_or_away, exclude_subs=False, half=period)
+
+        # for p_id in pass_map.keys():
+        #     print(p_id, team_object.player_map[p_id].position)
+        #     if team_object.player_map[p_id].position == "Goalkeeper":
+        #         formation.add_goalkeeper(p_id)
+
         formation.get_formation_graph(pass_map=pass_map)

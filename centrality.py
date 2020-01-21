@@ -55,8 +55,12 @@ for formation in copenhagen_formations:
     if home_team.team_id != copenhagen_team_id:
         home_or_away = "away"
 
+    team_object = onet.get_team(match_OPTA, team=home_or_away)
+    formation.add_team_object(team_object)
+    formation.add_goalkeeper()
+
     # for period in [0,1,2]:
-    for period in [0]:
+    for period in [1]:
         pass_map = onet.get_all_pass_destinations(match_OPTA, team=home_or_away, exclude_subs=False, half=period)
         # TODO: ^^ fix connectedness by using substitutes for the appropriate players within the formation
         # graph = formation.get_formation_graph(pass_map=pass_map, directed=True)
@@ -101,20 +105,25 @@ for formation in copenhagen_formations:
             receiver = reverse_key.get(max(key))
             print("{} -- {} --> {}: {}".format(sender, pass_map[sender][receiver]['num_passes'], receiver, value))
 
-        # print("BETWEENNESS")
-        # for key, value in sorted(betweenness.items(), key=lambda t:-t[1]):
-        #     # print("{}: {}".format(key, value))
-        #     player = reverse_key.get(key)
-        #     print("{}: {}".format(player, value))
+        print()
+        print("BETWEENNESS")
+        for key, value in sorted(betweenness.items(), key=lambda t:-t[1]):
+            # print("{}: {}".format(key, value))
+            player = reverse_key.get(key)
+            print("{}: {}".format(player, value))
 
-        # print("CENTRALITY")
-        # for key, value in sorted(centrality.items(), key=lambda t:-t[1]):
-        #     # print("{}: {}".format(key, value))
-        #     player = reverse_key.get(key)
-        #     print("{}: {}".format(player, value))
+        print()
+        print("CENTRALITY")
+        for key, value in sorted(centrality.items(), key=lambda t:-t[1]):
+            # print("{}: {}".format(key, value))
+            player = reverse_key.get(key)
+            print("{}: {}".format(player, value))
 
         # print("EDGE BETWEENNESS: {}".format(edge_betweenness))
         # print("BETWEENNESS: {}".format(betweenness))
         # print("CENTRALITY: {}".format(centrality))
         print()
+        print()
+
+        formation.get_formation_graph(pass_map)
 
