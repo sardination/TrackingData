@@ -1,6 +1,7 @@
 import OPTA_weighted_networks as onet
 
 import csv
+from itertools import combinations
 import matplotlib.pyplot as plt
 import networkx as nx
 
@@ -48,15 +49,20 @@ class Formation:
 
         edge_widths = None
         if pass_map is not None:
-            for p_id in player_ids:
+            for p_id, r_id in combinations(player_ids, 2):
                 passes_out = pass_map.get(p_id)
-                if passes_out is None:
-                    continue
-                for r_id in player_ids:
-                    pass_info = passes_out.get(r_id)
-                    if pass_info is None:
-                        continue
-                    G.add_edge(p_id, r_id, weight=pass_info["num_passes"])
+                if passes_out is not None:
+                    passes_out = passes_out.get(r_id)
+                passes_out = passes_out["num_passes"] if passes_out is not None else 0
+
+                passes_in = pass_map.get(r_id)
+                if passes_in is not None:
+                    passes_in = passes_in.get(p_id)
+                passes_in = passes_in["num_passes"] if passes_in is not None else 0
+
+                total_passes = passes_out + passes_in
+
+                G.add_edge(p_id, r_id, weight=total_passes)
 
             edge_widths = [G[u][v]['weight'] for u,v in G.edges()]
             max_width = max(edge_widths)

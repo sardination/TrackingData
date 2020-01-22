@@ -61,16 +61,14 @@ for formation in copenhagen_formations:
 
     substitution_events = [e for e in team_object.events if e.is_substitution]
 
+    # TODO: allow for resettable formations (pd 2 should have the subs from pd 1 pre-substituted)
     # for period in [0,1,2]:
-    for period in [2]:
+    for period in [0]:
         pass_map = onet.get_all_pass_destinations(match_OPTA, team=home_or_away, exclude_subs=False, half=period)
         # TODO: ^^ fix connectedness by using substitutes for the appropriate players within the formation
         # graph = formation.get_formation_graph(pass_map=pass_map, directed=True)
 
-        # TODO: fix this to be correct between formations for halves of the same game
-        for i in substitution_events:
-            print(i.player_id)
-        period_subs = [e for e in substitution_events if e.period_id == period]
+        period_subs = [e for e in substitution_events if (e.period_id == period or period == 0)]
         on_player = None
         off_player = None
         for e in period_subs:
@@ -81,9 +79,13 @@ for formation in copenhagen_formations:
 
             if on_player is not None and off_player is not None:
                 formation.add_substitute(off_player, on_player)
+                print("sub {} for {}".format(on_player, off_player))
                 on_player = None
                 off_player = None
 
+        # DONE: transfer the idea of centrality and betweenness to a directed graph
+        #   => what is the equivalent undirected graph format for a directed graph?
+        #   => perhaps create an "incoming" and "outgoing" node for each single node and connect those edges
         graph = nx.Graph()
         mapped_players = pass_map.keys()
         new_ids = {}
@@ -104,16 +106,14 @@ for formation in copenhagen_formations:
                 weight = pass_info["num_passes"]
                 if weight > 0:
                     # print("{} --{}--> {}".format(sender, weight, receiver))
-                    graph.add_edge(sender, receiver, weight=weight**3)  # TODO: adjust weight to work in relation
+                    # graph.add_edge(sender, receiver, weight=weight**2)  # TODO: adjust weight to work in relation
+                    graph.add_edge(sender, receiver, weight=weight)
 
         # CENTRALITY MEASUREMENTS
         edge_betweenness = nx.edge_current_flow_betweenness_centrality(graph, weight='weight')
         betweenness = nx.current_flow_betweenness_centrality(graph, weight='weight')
         centrality = nx.current_flow_closeness_centrality(graph, weight='weight')
         # TODO: ^^ check whether weight is distance or connection strength
-        # TODO: transfer the idea of centrality and betweenness to a directed graph
-        #   => what is the equivalent undirected graph format for a directed graph?
-        #   => perhaps create an "incoming" and "outgoing" node for each single node and connect those edges
 
         # print(graph.edges())
 
