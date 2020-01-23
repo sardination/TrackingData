@@ -255,16 +255,25 @@ for formation in copenhagen_formations:
 
         # create a directed graph
         graph = nx.DiGraph()
+        scaled_graph = nx.DiGraph()
+        inverse_graph = nx.DiGraph()
+        inverse_scaled_graph = nx.DiGraph()
         mapped_players = pass_map.keys()
         for p_id in mapped_players:
             for r_id in mapped_players:
                 if pass_map[p_id][r_id]["num_passes"] == 0:
                     continue
-                # graph.add_edge(p_id, r_id, weight=pass_map[p_id][r_id]["num_passes"])
-                graph.add_edge(
+                graph.add_edge(p_id, r_id, weight=pass_map[p_id][r_id]["num_passes"])
+                inverse_graph.add_edge(p_id, r_id, weight=1.0/pass_map[p_id][r_id]["num_passes"])
+                scaled_graph.add_edge(
                     p_id,
                     r_id,
                     weight=pass_map[p_id][r_id]["num_passes"] * (total_pair_times[p_id][r_id]) / max_played_time
+                )
+                inverse_scaled_graph.add_edge(
+                    p_id,
+                    r_id,
+                    weight=((total_pair_times[p_id][r_id]) / max_played_time) / pass_map[p_id][r_id]["num_passes"]
                 )
 
         # ball_in_node = 0
@@ -287,24 +296,33 @@ for formation in copenhagen_formations:
                 on_player = None
                 off_player = None
 
-        betweenness = current_flow_betweenness_directed(graph, start_node=formation.goalkeeper)
+        betweenness = current_flow_betweenness_directed(scaled_graph, start_node=formation.goalkeeper)
         print("BETWEENNESS")
         for key, value in sorted(betweenness.items(), key=lambda t:-t[1]):
             print("{}: {}".format(key, value))
 
         print()
 
-        edge_betweenness = current_flow_edge_betweenness_directed(graph, start_node=formation.goalkeeper)
+        edge_betweenness = current_flow_edge_betweenness_directed(scaled_graph, start_node=formation.goalkeeper)
         print("EDGE BETWEENNESS")
         for key, value in sorted(edge_betweenness.items(), key=lambda t:-t[1]):
             print("{} -- {} --> {}: {}".format(key[0], pass_map[key[0]][key[1]]['num_passes'], key[1], value))
 
         print()
 
-        closenesses = current_flow_closeness_directed(graph, start_node=formation.goalkeeper)
+        closenesses = current_flow_closeness_directed(scaled_graph, start_node=formation.goalkeeper)
         print("CLOSENESS")
         for key, value in sorted(closenesses.items(), key=lambda t:-t[1]):
             print("{}: {}".format(key, value))
+
+        print()
+
+        katz_centrality = nx.katz_centrality_numpy(inverse_graph, weight='weight')
+        print("KATZ")
+        for key, value in sorted(katz_centrality.items(), key=lambda t:-t[1]):
+            print("{}: {}".format(key, value))
+
+        print()
 
         formation.get_formation_graph(pass_map)
 ###
