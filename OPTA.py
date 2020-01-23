@@ -164,6 +164,53 @@ class OPTAteam(object):
                 e.calc_shot_xG_Caley()
                 e.calc_shot_xG_Caley2()
 
+
+    def get_on_pitch_periods(self):
+        """
+        Return dictionary of player IDs mapped to their starting and ending times
+        """
+
+        involved_players = []
+        on_pitch_players = []
+        positions = []
+        period_dict = {}
+
+        allowed_periods = [1, 10, 2, 11, 3, 12, 4, 13]
+
+        for e in self.events:
+            if e.type_id == 34: # team setup
+                for qual in e.qualifiers:
+                    if qual.qual_id == 30: # involved players
+                        involved_players = [int(p_id) for p_id in qual.value.split(", ")]
+                        period_dict = {p_id: [] for p_id in involved_players}
+                    elif qual.qual_id == 131: # formation of players (0 if not involved)
+                        positions = [int(pos) for pos in qual.value.split(", ")]
+
+                    if involved_players != [] and positions != []:
+                        on_pitch_players = [p_id for p_id, pos in zip(involved_players, positions) if pos != 0]
+                        break
+
+            elif e.is_substitution:
+                if e.sub_direction == "on":
+                    period_dict[e.player_id].append({'start': e.time, 'end': None, 'period': e.period_id})
+                    on_pitch_players.append(e.player_id)
+                elif e.sub_direction == "off":
+                    period_dict[e.player_id][-1]['end'] = e.time
+                    on_pitch_players.remove(e.player_id)
+
+            elif e.type_id == 30 and e.period_id in allowed_periods: # end of period
+                for p_id in on_pitch_players:
+                    for i in range(len(period_dict[p_id])):
+                        if period_dict[p_id][i]['end'] == None:
+                            period_dict[p_id][i]['end'] = e.time
+                            break
+
+            elif e.type_id == 32 and e.period_id in allowed_periods: # start of period
+                for p_id in on_pitch_players:
+                    period_dict[p_id].append({'start': e.time, 'end': None, 'period': e.period_id})
+
+        return period_dict
+
     def __repr__(self):
         return self.teamname
 
