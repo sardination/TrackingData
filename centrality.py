@@ -3,6 +3,109 @@ import OPTA as opta
 import OPTA_weighted_networks as onet
 
 import networkx as nx
+import numpy as np
+
+
+def current_flow_betweenness_directed(graph):
+    """
+    Calculates current-based (node) betweenness for a directed graph
+
+    Args:
+        graph (nx.DiGraph): graph with weights defined in 'weight' attr
+    """
+
+    nodes = list(graph.nodes())
+    edges = list(graph.edges())
+
+    n = len(nodes)
+
+    betweennesses = {p_id: 0 for p_id in nodes}
+
+    A = np.array([[graph[v][w]['weight'] if (v != w and (v,w) in edges) else 0 for v in nodes] for w in nodes])
+    L = np.diag(np.sum(A, axis=1)) - A
+    L_tilde = L[1:,1:]
+    L_tilde_inverse = np.linalg.inv(L_tilde)
+    C = np.zeros((n, n))
+    C[1:,1:] = L_tilde_inverse
+
+    throughputs = {s: {t: {v: 0 for v in nodes} for t in nodes} for s in nodes}
+    currents = {s: {t: {e: 0 for e in edges} for t in nodes} for s in nodes}
+
+    for s_index, s in enumerate(nodes):
+        for t_index, t in enumerate(nodes):
+            if s == t:
+                continue
+
+            b = np.zeros((n, 1))
+            b[s_index][0] = 1
+            b[t_index][0] = -1
+
+            p = C @ b
+
+            for e in edges:
+                v, w = e
+                v_index = nodes.index(v)
+                w_index = nodes.index(w)
+
+                currents[s][t][e] = (p[v_index][0] - p[w_index][0]) * graph[v][w]['weight']
+
+            for v_index, v in enumerate(nodes):
+                throughputs[s][t][v] = 0.5 * (-abs(b[v_index][0]) + sum([abs(currents[s][t][e]) for e in edges if v in e]))
+
+    for v in nodes:
+        betweennesses[v] = (1.0 / ((n - 1) * (n - 2))) * sum([throughputs[s][t][v] for s in nodes for t in nodes])
+
+    return betweennesses
+
+
+def current_flow_edge_betweenness_directed(graph):
+    """
+    Calculates current-based (edge) betweenness for a directed graph
+
+    Args:
+        graph (nx.DiGraph): graph with weights defined in 'weight' attr
+    """
+
+    nodes = list(graph.nodes())
+    edges = list(graph.edges())
+
+    n = len(nodes)
+    m = len(edges)
+
+    betweennesses = {e: 0 for e in edges}
+
+    A = np.array([[graph[v][w]['weight'] if (v != w and (v,w) in edges) else 0 for v in nodes] for w in nodes])
+    L = np.diag(np.sum(A, axis=1)) - A
+    L_tilde = L[1:,1:]
+    L_tilde_inverse = np.linalg.inv(L_tilde)
+    C = np.zeros((n, n))
+    C[1:,1:] = L_tilde_inverse
+
+    throughputs = {s: {t: {e: 0 for e in edges} for t in nodes} for s in nodes}
+
+    for s_index, s in enumerate(nodes):
+        for t_index, t in enumerate(nodes):
+            if s == t:
+                continue
+
+            b = np.zeros((n, 1))
+            b[s_index][0] = 1
+            b[t_index][0] = -1
+
+            p = C @ b
+
+            for e in edges:
+                v, w = e
+                v_index = nodes.index(v)
+                w_index = nodes.index(w)
+
+                throughputs[s][t][e] = abs((p[v_index][0] - p[w_index][0]) * graph[v][w]['weight'])
+
+    for e in edges:
+        betweennesses[e] = (1.0 / ((m - 1) * (m - 2))) * sum([throughputs[s][t][e] for s in nodes for t in nodes])
+
+    return betweennesses
+
 
 fpath = "../Copenhagen/"
 all_copenhagen_match_ids = [
@@ -68,6 +171,15 @@ for formation in copenhagen_formations:
         # TODO: ^^ fix connectedness by using substitutes for the appropriate players within the formation
         # graph = formation.get_formation_graph(pass_map=pass_map, directed=True)
 
+        # create a directed graph
+        graph = nx.DiGraph()
+        mapped_players = pass_map.keys()
+        for p_id in mapped_players:
+            for r_id in mapped_players:
+                if pass_map[p_id][r_id]["num_passes"] == 0:
+                    continue
+                graph.add_edge(p_id, r_id, weight=pass_map[p_id][r_id]["num_passes"])
+
         period_subs = [e for e in substitution_events if (e.period_id == period or period == 0)]
         on_player = None
         off_player = None
@@ -83,66 +195,17 @@ for formation in copenhagen_formations:
                 on_player = None
                 off_player = None
 
-        # DONE: transfer the idea of centrality and betweenness to a directed graph
-        #   => what is the equivalent undirected graph format for a directed graph?
-        #   => perhaps create an "incoming" and "outgoing" node for each single node and connect those edges
-        graph = nx.Graph()
-        mapped_players = pass_map.keys()
-        new_ids = {}
-        reverse_key = {}
-        for new_id, p_id in enumerate(mapped_players):
-            new_ids[p_id] = [new_id, 100 + new_id]
-            reverse_key[new_id] = p_id
-            reverse_key[100 + new_id] = p_id
-            graph.add_node(new_id) # new_id is outgoing, 100 + new_id is incoming
-            graph.add_node(100 + new_id)
-
-        for p_id in mapped_players:
-            for r_id in mapped_players:
-                pass_info = pass_map[p_id][r_id]
-
-                sender = new_ids[p_id][0]
-                receiver = new_ids[r_id][1]
-                weight = pass_info["num_passes"]
-                if weight > 0:
-                    # print("{} --{}--> {}".format(sender, weight, receiver))
-                    # graph.add_edge(sender, receiver, weight=weight**2)  # TODO: adjust weight to work in relation
-                    graph.add_edge(sender, receiver, weight=weight)
-
-        # CENTRALITY MEASUREMENTS
-        edge_betweenness = nx.edge_current_flow_betweenness_centrality(graph, weight='weight')
-        betweenness = nx.current_flow_betweenness_centrality(graph, weight='weight')
-        centrality = nx.current_flow_closeness_centrality(graph, weight='weight')
-        # TODO: ^^ check whether weight is distance or connection strength
-
-        # print(graph.edges())
-
-        print("EDGE BETWEENNESS")
-        for key, value in sorted(edge_betweenness.items(), key=lambda t:-t[1]):
-            # print("{}: {}".format(key, value))
-            sender = reverse_key.get(min(key))
-            receiver = reverse_key.get(max(key))
-            print("{} -- {} --> {}: {}".format(sender, pass_map[sender][receiver]['num_passes'], receiver, value))
-
-        print()
+        betweenness = current_flow_betweenness_directed(graph)
         print("BETWEENNESS")
         for key, value in sorted(betweenness.items(), key=lambda t:-t[1]):
-            # print("{}: {}".format(key, value))
-            player = reverse_key.get(key)
-            print("{}: {}".format(player, value))
+            print("{}: {}".format(key, value))
 
         print()
-        print("CENTRALITY")
-        for key, value in sorted(centrality.items(), key=lambda t:-t[1]):
-            # print("{}: {}".format(key, value))
-            player = reverse_key.get(key)
-            print("{}: {}".format(player, value))
 
-        # print("EDGE BETWEENNESS: {}".format(edge_betweenness))
-        # print("BETWEENNESS: {}".format(betweenness))
-        # print("CENTRALITY: {}".format(centrality))
-        print()
-        print()
+        edge_betweenness = current_flow_edge_betweenness_directed(graph)
+        print("EDGE BETWEENNESS")
+        for key, value in sorted(edge_betweenness.items(), key=lambda t:-t[1]):
+            print("{} -- {} --> {}: {}".format(key[0], graph[key[0]][key[1]]['weight'], key[1], value))
 
         formation.get_formation_graph(pass_map)
 
