@@ -164,6 +164,32 @@ class OPTAteam(object):
                 e.calc_shot_xG_Caley()
                 e.calc_shot_xG_Caley2()
 
+    def get_player_positions(self, period=1):
+        """
+        Return dictionary of player IDs mapped to their position numbers (0 means on the bench)
+        """
+        player_positions = {}
+        involved_players = []
+        positions = []
+        for e in self.events:
+            if e.type_id == 34 or (period == 2 and e.type_id == 40): # team setup
+                for qual in e.qualifiers:
+                    if qual.qual_id == 30: # involved players
+                        involved_players = [int(p_id) for p_id in qual.value.split(", ")]
+                        period_dict = {p_id: [] for p_id in involved_players}
+                    elif qual.qual_id == 131: # formation of players (0 if not involved)
+                        positions = [int(pos) for pos in qual.value.split(", ")]
+
+                    if involved_players != [] and positions != []:
+                        # on_pitch_players = [p_id for p_id, pos in zip(involved_players, positions) if pos != 0]
+                        player_positions = {p_id: pos for p_id, pos in zip(involved_players, positions)}
+                        break
+
+                if period == 1 or (period == 2 and e.type_id == 40):
+                    # in case the formation changes at the beginning of the second period
+                    break
+
+        return player_positions
 
     def get_on_pitch_periods(self):
         """
@@ -179,6 +205,7 @@ class OPTAteam(object):
 
         for e in self.events:
             if e.type_id == 34: # team setup
+                # TODO: abstract this into the get_player_positions method
                 for qual in e.qualifiers:
                     if qual.qual_id == 30: # involved players
                         involved_players = [int(p_id) for p_id in qual.value.split(", ")]

@@ -93,7 +93,7 @@ all_copenhagen_match_ids = [984514, 984567]
 
 # NETWORK VISUALIZATION METHODS
 
-# copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv')
+# copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv', copenhagen_team_id)
 # for match_id in all_copenhagen_match_ids:
 #     fname = str(match_id)
 #     match_OPTA = opta.read_OPTA_f7(fpath, fname)
@@ -144,12 +144,12 @@ all_copenhagen_match_ids = [984514, 984567]
 
 # SHOW NETWORK WITH NODES POSITIONED BY FORMATION
 
-copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv')
+copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv', copenhagen_team_id)
 
 # test_f = copenhagen_formations[1]
 # test_f.get_formation_graph()
 
-all_copenhagen_match_ids = [984567]
+all_copenhagen_match_ids = [984459]
 
 # for match_id in all_copenhagen_match_ids:
 for formation in copenhagen_formations:
@@ -167,6 +167,10 @@ for formation in copenhagen_formations:
     away_team = onet.get_team(match_OPTA, team="away")
     if home_team.team_id != copenhagen_team_id:
         home_or_away = "away"
+
+    opp_team = "home" if home_or_away == "away" else "away"
+
+    ovis.plot_passing_network(match_OPTA, team=opp_team, relative_positioning=False, display_passes=True, weighting="regular")
 
     team_object = onet.get_team(match_OPTA, team=home_or_away)
     formation.add_team_object(team_object)

@@ -6,15 +6,52 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 class Formation:
-    def __init__(self, match_id, formation_id, opp_formation_1, opp_formation_2, player_locations):
+    def __init__(self, match_id, team_id, formation_id, opp_formation_1, opp_formation_2, player_locations=None, player_positions=None):
+        """
+        `player_locations` should be a dictionary of the (x,y) coordinates of each player indexed by player ID
+        `player_positions` should be a list of player IDs in order of position as given in f24.xml
+        """
         self.match_id = match_id
+        self.team_id = team_id
         self.formation_id = formation_id
         self.opp_formation_1 = opp_formation_1
         self.opp_formation_2 = opp_formation_2
         self.player_locations = player_locations
-        self.goalkeeper = None
 
+        self.goalkeeper = None
         self.team_object = None
+
+        csv_formations = {
+            '1': [(-10,0), (-7,-7), (-7,7), (-5,-12), (-5,12), (0,-5), (0,5), (10,-10), (10,10), (15,0)],
+            '2': [(-10,0), (-7,-7), (-7,7), (-5,-12), (-5,12), (0,0), (5,-7), (5,7), (15,-5), (15,5)],
+            '3': [(-10,0), (-7,-7), (-7,7), (-5,-12), (-5,12), (0,-5), (0,5), (5,-7), (5,7), (7,0)],
+            '4': [(-10,0), (-7,-7), (-7,7), (-5,-12), (-5,12), (0,-5), (0,5), (5,0), (10,-7), (10,7)],
+            '5': [(-7,-6), (-7,6), (-5,-12), (-5,12), (0,-5), (0,5), (5,-10), (5,10), (10,-3), (10,3)],
+            '6': [(-7,-6), (-7,6), (-5,-12), (-5,12), (-2,0), (0,-5), (0,5), (5,0), (10,-6), (10,6)],
+            '7': [(-5,-7), (-5,0), (-5,7), (-2,-12), (-2,12), (0,-5), (0,5), (5,-7), (5,7), (7,0)],
+            '8': [(-7,-5), (-7,5), (-5,-10), (-5,10), (-2,0), (2,0), (5,-3), (5,3), (7,-3), (7,3)],
+            '9': [(-7,-5), (-7,5), (-5,-12), (-5,12), (-2,0), (2,-7), (2,7), (7,-10), (7,0), (7,10)],
+            '10': [(-7,-6), (-7,6), (-5,-12), (-5,12), (-2,0), (2,-6), (2,6), (5,-12), (5,12), (7,0)],
+            '11': [(-7,-5), (-7,5), (-5,-10), (-5,10), (0,0), (5,-12), (5,-6), (5,6), (5,12), (10,0)],
+            '12': [(-7,-6), (-7,6), (-5,-12), (-5,12), (0,-6), (0,6), (5,-12), (5,12), (10,-5), (10,5)],
+            '13': [(-7,0), (-5,-10), (-5,10), (-2,0), (2,-12), (2,0), (2,12), (5,-5), (5,0), (5,5)],
+            '14': [(-7,0), (-5,-10), (-5,10), (0,-5), (0,5), (5,-12), (5,0), (5,12), (7,-6), (7,6)],
+            '15': [(-7,0), (-5,-10), (-5,10), (0,-5), (0,5), (2,-12), (2,12), (5,-10), (5,0), (5,10)],
+            '16': [(-7,0), (-5,-10), (-5,10), (0,0), (2,-12), (2,12), (5,-6), (5,6), (10,-5), (10,5)],
+            '17': [(-5,-7), (-5,7), (0,-10), (0,-5), (0,5), (0,10), (5,-5), (5,5), (10,-5), (10,5)],
+            '18': [(-5,-7), (-5,7), (-2,0), (0,-12), (0,-7), (0,7), (0,12), (5,-10), (5,0), (5,10)],
+            '19': [(-5,-7), (-5,7), (-2,-12), (-2,12), (0,-5), (0,5), (5,-10), (5,10), (7,-2), (7,2)],
+            '20': [(-5,-7), (-5,7), (-2,-10), (-2,10),(0,-5), (0,5), (5,-7), (5,7), (7,-5), (7,5)]
+        }
+
+        if self.player_locations is None:
+            if player_positions is None:
+                raise("Need either player positions or player locations")
+            # TODO: assign player positions based on formation ID
+            self.player_locations = {}
+            formation_locations = csv_formations[self.formation_id]
+            for i, p_id in enumerate(player_positions[1:]):
+                self.player_locations[p_id] = (formation_locations[i][0] * 1.5, formation_locations[i][1] * 1.2)
 
     def add_team_object(self, team_object):
         self.team_object = team_object
@@ -111,10 +148,11 @@ def copy_formation(formation):
 
     new_formation = Formation(
         formation.match_id,
+        formation.team_id,
         formation.formation_id,
         formation.opp_formation_1,
         formation.opp_formation_2,
-        player_locations
+        player_locations=player_locations
     )
 
     new_formation.team_object = formation.team_object
@@ -123,7 +161,7 @@ def copy_formation(formation):
     return new_formation
 
 
-def read_formations_from_csv(csv_filename):
+def read_formations_from_csv(csv_filename, team_id):
     """
     Read CSV file with formation information and return list of Formation objects
 
@@ -150,6 +188,13 @@ def read_formations_from_csv(csv_filename):
                 y = -float(row[i + 2])
                 player_locations[p_id] = (x, y)
 
-            formations.append(Formation(match_id, formation_id, opp_formation_1, opp_formation_2, player_locations))
+            formations.append(Formation(
+                match_id,
+                team_id,
+                formation_id,
+                opp_formation_1,
+                opp_formation_2,
+                player_locations=player_locations
+            ))
 
     return formations
