@@ -195,7 +195,7 @@ copenhagen_team_id = 569
 
 copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv')
 
-all_copenhagen_match_ids = [984567]
+all_copenhagen_match_ids = [984463]
 
 for formation in copenhagen_formations:
     match_id = formation.match_id
@@ -222,12 +222,26 @@ for formation in copenhagen_formations:
     player_times = team_object.get_on_pitch_periods()
 
 ###
-    # TODO: allow for resettable formations (pd 2 should have the subs from pd 1 pre-substituted)
-    # for period in [0,1,2]:
-    for period in [0]:
+    original_formation = formation
+    for period in [0,1,2]:
+        formation = formations.copy_formation(original_formation)
         pass_map = onet.get_all_pass_destinations(match_OPTA, team=home_or_away, exclude_subs=False, half=period)
-        # TODO: ^^ fix connectedness by using substitutes for the appropriate players within the formation
-        # graph = formation.get_formation_graph(pass_map=pass_map, directed=True)
+
+        period_subs = [e for e in substitution_events if (e.period_id <= period or period == 0)]
+        on_player = None
+        off_player = None
+        for e in period_subs:
+            if e.sub_direction == "on":
+                on_player = e.player_id
+            elif e.sub_direction == "off":
+                off_player = e.player_id
+
+            if on_player is not None and off_player is not None:
+                formation.add_substitute(off_player, on_player, replace=(e.period_id < period))
+                print("sub {} for {} in period {}".format(on_player, off_player, e.period_id))
+                on_player = None
+                off_player = None
+
 
         total_player_times = {p_id: 0 for p_id in pass_map.keys()}
         for p_id in pass_map.keys():
@@ -275,26 +289,6 @@ for formation in copenhagen_formations:
                     r_id,
                     weight=((total_pair_times[p_id][r_id]) / max_played_time) / pass_map[p_id][r_id]["num_passes"]
                 )
-
-        # ball_in_node = 0
-        # while ball_in_node in graph.nodes():
-        #     ball_in_node += 1
-        # graph.add_edge(ball_in_node, formation.goalkeeper, weight=1)
-
-        period_subs = [e for e in substitution_events if (e.period_id == period or period == 0)]
-        on_player = None
-        off_player = None
-        for e in period_subs:
-            if e.sub_direction == "on":
-                on_player = e.player_id
-            elif e.sub_direction == "off":
-                off_player = e.player_id
-
-            if on_player is not None and off_player is not None:
-                formation.add_substitute(off_player, on_player)
-                print("sub {} for {}".format(on_player, off_player))
-                on_player = None
-                off_player = None
 
         betweenness = current_flow_betweenness_directed(scaled_graph, start_node=formation.goalkeeper)
         print("BETWEENNESS")

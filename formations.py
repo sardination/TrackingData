@@ -32,16 +32,20 @@ class Formation:
             self.goalkeeper = goalkeeper_id
             self.player_locations[goalkeeper_id] = (-45, 0)
 
-    def add_substitute(self, original_player, substitute_player):
+    def add_substitute(self, original_player, substitute_player, replace=False):
         """
         Add the substitute to the formation graph, located near, but not replacing, the node of the
         original player
         """
         original_location = self.player_locations[original_player]
-        y = 45
-        if original_location[0] < 0:
-            y = -45
-        self.player_locations[substitute_player] = (original_location[0], y)
+        if not replace:
+            y = 45
+            if original_location[0] < 0:
+                y = -45
+            self.player_locations[substitute_player] = (original_location[0], y)
+        else:
+            self.player_locations.pop(original_player)
+            self.player_locations[substitute_player] = original_location
 
     def get_formation_graph(self, pass_map=None):
         G = nx.Graph()
@@ -100,6 +104,23 @@ class Formation:
         plt.axis('off')
         plt.show()
         return G
+
+
+def copy_formation(formation):
+    player_locations = {p_id: location for p_id, location in formation.player_locations.items()}
+
+    new_formation = Formation(
+        formation.match_id,
+        formation.formation_id,
+        formation.opp_formation_1,
+        formation.opp_formation_2,
+        player_locations
+    )
+
+    new_formation.team_object = formation.team_object
+    new_formation.goalkeeper = formation.goalkeeper
+
+    return new_formation
 
 
 def read_formations_from_csv(csv_filename):
