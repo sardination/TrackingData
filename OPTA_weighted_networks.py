@@ -362,6 +362,63 @@ def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False, half=
     return pass_map
 
 
+def convert_pass_map_to_roles(team_object, pass_map):
+    """
+    Convert pass map to use role IDs rather than player IDs. Combines substitutes into one role ID.
+
+    Returns:
+        role_mappings: dict of player IDs to role IDs
+        new_pass_map: dict of passing info by role ID rather than player ID
+    """
+
+    player_positions = team_object.get_player_positions()
+
+    new_pass_map = {r_passer: {r_receiver: {
+                    "num_passes": 0,
+                    "avg_pass_dist": 0,
+                    "avg_pass_dir": 0 # scale of 0 to 1 indicating lateral - lengthwise
+                    } for r_receiver in range(1, 12)} for r_passer in range(1, 12)}
+
+    # assign role IDs to the appropriate substitutes
+    substition_events = [e for e in team_object.events if e.is_substitution]
+    on_sub = None
+    off_sub = None
+    for e in substition_events:
+        if e.sub_direction == "on":
+            on_sub = e.player_id
+        elif e.sub_direction == "off":
+            off_sub = e.player_id
+
+        if on_sub is not None and off_sub is not None:
+            role_id = player_positions[off_sub]
+            player_positions[on_sub] = role_id
+
+            on_sub = None
+            off_sub = None
+
+    for p_id, p_pass_dict in pass_map.items():
+        for r_id, pass_dict in p_pass_dict.items():
+            p_role_id = player_positions[p_id]
+            r_role_id = player_positions[r_id]
+
+            num_passes = pass_dict["num_passes"]
+
+            new_pass_map[p_role_id][r_role_id]["num_passes"] += num_passes
+            new_pass_map[p_role_id][r_role_id]["avg_pass_dist"] += pass_dict["avg_pass_dist"] * num_passes
+            new_pass_map[p_role_id][r_role_id]["avg_pass_dir"] += pass_dict["avg_pass_dir"] * num_passes
+
+    for p_id, p_pass_dict in new_pass_map.items():
+        for r_id, pass_dict in p_pass_dict.items():
+            num_passes = pass_dict["num_passes"]
+            if num_passes == 0:
+                continue
+
+            new_pass_map[p_id][r_id]["avg_pass_dist"] /= num_passes
+            new_pass_map[p_id][r_id]["avg_pass_dir"] /= num_passes
+
+    return player_positions, new_pass_map
+
+
 def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, use_triplets=True, block=True):
     """
     Display a visual representation of the passing network. This network is not spatially

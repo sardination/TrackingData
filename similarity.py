@@ -3,9 +3,10 @@ import OPTA as opta
 import OPTA_weighted_networks as onet
 
 import numpy as np
+import random
 
 
-def get_bitstrings(match, team_id):
+def get_bitstrings(match, team_id, bit_ordering=None):
     """
     Return bitstrings for nodes and edges based on XML-designated formation positions (13 bits)
     If last bit is 1, then node. If last bit is 0, then edge.
@@ -71,10 +72,20 @@ def get_bitstrings(match, team_id):
     for p_id in player_bits.keys():
         player_bits[p_id] = player_bits[p_id] + ("0" * node_bits) + "1"
 
+    if bit_ordering is not None:
+        player_bits = {p_id: ''.join([list(b)[ind] for ind in bit_ordering]) for p_id, b in player_bits.items()}
+        edge_bits = {p_id:
+            {r_id:
+                ''.join([list(b)[ind] for ind in bit_ordering])
+                for r_id, b in p_dict.items()
+            }
+            for p_id, p_dict in edge_bits.items()
+        }
+
     return player_bits, edge_bits
 
 
-def get_graph_fingerprint(match, team_id):
+def get_graph_fingerprint(match, team_id, bit_ordering=None):
     """
     Get PageRank of each node and use edge weights to sum and determine graph fingerprint
     """
@@ -87,7 +98,7 @@ def get_graph_fingerprint(match, team_id):
         home_or_away = "away"
     team_object = onet.get_team(match, team=home_or_away)
 
-    node_bitstrings, edge_bitstrings = get_bitstrings(match, team_id)
+    node_bitstrings, edge_bitstrings = get_bitstrings(match, team_id, bit_ordering=bit_ordering)
     node_bitstrings = {p_id: np.array([-1 if c == "0" else 1 for c in list(b)]) for p_id, b in node_bitstrings.items()}
     edge_bitstrings = {p_id:
         {r_id:
@@ -160,6 +171,9 @@ all_copenhagen_match_ids = [
 ]
 copenhagen_team_id = 569
 
+num_bits = 13
+bit_ordering = list(range(num_bits))
+random.shuffle(bit_ordering)
 
 fingerprints = {}
 for match_id in all_copenhagen_match_ids:
@@ -167,6 +181,6 @@ for match_id in all_copenhagen_match_ids:
     match_OPTA = opta.read_OPTA_f7(fpath, fname)
     match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
 
-    fingerprints[match_id] = get_graph_fingerprint(match_OPTA, copenhagen_team_id)
+    fingerprints[match_id] = get_graph_fingerprint(match_OPTA, copenhagen_team_id, bit_ordering=bit_ordering)
     print("Match {}: {}".format(match_id, fingerprints[match_id]))
 

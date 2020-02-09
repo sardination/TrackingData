@@ -84,9 +84,27 @@ class Formation:
             self.player_locations.pop(original_player)
             self.player_locations[substitute_player] = original_location
 
-    def get_formation_graph(self, pass_map=None):
+    def get_formation_graph(self, pass_map=None, transfer_map=None):
+        """
+        Create network graph based on pass map and formation information
+
+        Kwargs:
+            pass_map: dict of dicts with pass details
+            transfer_map: dict to map player IDs to different node names (as given in pass_map)
+        """
+
         G = nx.Graph()
-        player_ids = self.player_locations.keys()
+
+        # default is to use player IDs, but transfer_map can indicate a change in labeling
+        player_locations = self.player_locations
+        if transfer_map is not None:
+            player_locations = {}
+            for player_id, new_key in transfer_map.items():
+                if player_id not in self.player_locations.keys() or new_key in player_locations.keys():
+                    continue
+                player_locations[new_key] = self.player_locations[player_id]
+
+        player_ids = player_locations.keys()
 
         edge_widths = None
         if pass_map is not None:
@@ -123,24 +141,36 @@ class Formation:
 
         nx.draw_networkx_nodes(
             G,
-            self.player_locations,
+            player_locations,
             node_size=node_sizes,
             node_color='blue'
         )
         nx.draw_networkx_labels(
             G,
-            self.player_locations,
+            player_locations,
             {p_id: p_id for p_id in player_ids},
             font_size=12,
             font_family='sans-serif',
             font_color='red'
         )
+
         if pass_map is not None:
-            nx.draw_networkx_edges(G, self.player_locations, width=edge_widths)
+            nx.draw_networkx_edges(G, player_locations, width=edge_widths)
 
         plt.axis('off')
         plt.show()
         return G
+
+
+    def get_formation_graph_by_role(self, pass_map):
+        """
+        Display formation by role rather than player ID. Combine substitutes with
+        their target players into one role node.
+        """
+
+        role_mappings, role_pass_map = onet.convert_pass_map_to_roles(self.team_object, pass_map)
+
+        return self.get_formation_graph(pass_map=role_pass_map, transfer_map=role_mappings)
 
 
 def copy_formation(formation):

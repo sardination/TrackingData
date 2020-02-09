@@ -196,7 +196,8 @@ copenhagen_team_id = 569
 copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv', copenhagen_team_id)
 # opposing_formations = []
 
-all_copenhagen_match_ids = [984463]
+# all_copenhagen_match_ids = [984463]
+all_copenhagen_match_ids = [984496]
 
 for formation in copenhagen_formations:
     match_id = formation.match_id
@@ -408,7 +409,11 @@ for formation in copenhagen_formations:
 
         print()
 
-        formation.get_formation_graph(pass_map)
-        opposing_formation.get_formation_graph(opposing_pass_map)
+        ns, ac = onet.get_eigenvalues(team_pass_map.keys(), team_pass_map)
+        print("network strength: {}, algebraic connectivity: {}".format(ns, ac))
+
+        formation.get_formation_graph(pass_map=pass_map)
+        formation.get_formation_graph_by_role(pass_map)
+        # opposing_formation.get_formation_graph(pass_map=opposing_pass_map)
 ###
 
