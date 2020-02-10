@@ -1,3 +1,4 @@
+import centrality
 import formations
 import OPTA as opta
 import OPTA_weighted_networks as onet
@@ -171,16 +172,70 @@ all_copenhagen_match_ids = [
 ]
 copenhagen_team_id = 569
 
-num_bits = 13
-bit_ordering = list(range(num_bits))
-random.shuffle(bit_ordering)
-
-fingerprints = {}
+matches = {}
+home_or_away = {}
+team_objects = {}
 for match_id in all_copenhagen_match_ids:
     fname = str(match_id)
     match_OPTA = opta.read_OPTA_f7(fpath, fname)
     match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
 
-    fingerprints[match_id] = get_graph_fingerprint(match_OPTA, copenhagen_team_id, bit_ordering=bit_ordering)
-    print("Match {}: {}".format(match_id, fingerprints[match_id]))
+    matches[match_id] = match_OPTA
+
+    home_team = onet.get_team(match_OPTA, team="home")
+    away_team = onet.get_team(match_OPTA, team="away")
+    home_or_away[match_id] = "home"
+    team_objects[match_id] = home_team
+    if home_team.team_id != copenhagen_team_id:
+        home_or_away[match_id] = "away"
+        team_objects[match_id] = away_team
+
+copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv', copenhagen_team_id)
+formations = {formation.match_id: formation for formation in copenhagen_formations}
+
+num_bits = 13
+bit_ordering = list(range(num_bits))
+random.shuffle(bit_ordering)
+
+if False:
+    print("------ FINGERPRINTS ------")
+    fingerprints = {}
+    for match_id in all_copenhagen_match_ids:
+        match_OPTA = matches[match_id]
+        fingerprints[match_id] = get_graph_fingerprint(match_OPTA, copenhagen_team_id, bit_ordering=bit_ordering)
+        print("Match {}: {}".format(match_id, fingerprints[match_id]))
+
+print()
+
+if True:
+    print("------ CENTRALITY (BETWEENNESS) ORDERING ------")
+    for match_id in all_copenhagen_match_ids:
+        match_OPTA = matches[match_id]
+        team_object = team_objects[match_id]
+        formation = formations[match_id]
+
+        pass_map = onet.get_all_pass_destinations(
+            match_OPTA,
+            team=home_or_away[match_id],
+            exclude_subs=False,
+            half=0 # full game
+        )
+        player_times = team_object.get_on_pitch_periods()
+        graphs = centrality.get_directed_graphs(
+            pass_map,
+            player_times,
+            team_object,
+            role_grouped=True
+        )
+
+        betweenness = centrality.current_flow_betweenness_directed(
+            graphs['scaled_graph'],
+            start_node=1 # goalkeeper role
+        )
+        print("Match {}, Opposing Formation {}/{}:\t {}".format(
+            match_id,
+            formation.opp_formation_1,
+            formation.opp_formation_2,
+            [r_id for r_id, _ in sorted(betweenness.items(), key=lambda t:-t[1])]
+        ))
 
