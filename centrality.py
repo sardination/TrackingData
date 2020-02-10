@@ -220,7 +220,7 @@ for formation in copenhagen_formations:
     formation.add_goalkeeper()
 
     # Get opposing team info
-    opposite_side = "home" if home_or_away == "away" else "home"
+    opposite_side = "home" if home_or_away == "away" else "away"
     opposing_team_object = onet.get_team(match_OPTA, team=opposite_side)
 
     substitution_events = [e for e in team_object.events if e.is_substitution]
@@ -279,9 +279,9 @@ for formation in copenhagen_formations:
         # create a directed graph
         graphs = {}
         opposing_graphs = {}
-        for team_graphs, team_pass_map, team_player_times in [
-            (graphs, pass_map, player_times),
-            (opposing_graphs, opposing_pass_map, opp_player_times)
+        for team_graphs, team_pass_map, team_player_times, this_team_object in [
+            (graphs, pass_map, player_times, team_object),
+            (opposing_graphs, opposing_pass_map, opp_player_times, opposing_team_object)
         ]:
             for g_type in ['graph', 'inverse_graph', 'scaled_graph', 'inverse_scaled_graph']:
                 team_graphs[g_type] = nx.DiGraph()
@@ -310,6 +310,22 @@ for formation in copenhagen_formations:
 
             max_played_time = max(total_player_times.values())
 
+            # TOGGLE: use role-grouped graph instead of player-separated graph
+            role_grouped = True ### TOGGLE ###
+            if role_grouped:
+                role_mappings, team_pass_map = onet.convert_pass_map_to_roles(this_team_object, team_pass_map)
+                new_total_pair_times = {p_r_id: {r_r_id: 0 for r_r_id in range(1, 12)} for p_r_id in range(1,12)}
+                for p_id, p_role_id in role_mappings.items():
+                    if p_id not in total_pair_times.keys():
+                        continue
+                    for r_id, r_role_id in role_mappings.items():
+                        if r_id not in total_pair_times.keys():
+                            continue
+                        new_total_pair_times[p_role_id][r_role_id] += total_pair_times[p_id][r_id]
+                total_pair_times = new_total_pair_times
+            # _, pass_map = onet.convert_pass_map_to_roles(team_object, pass_map)
+            # _, opposing_pass_map = onet.convert_pass_map_to_roles(opposing_team_object, opposing_pass_map)
+
             # Create graphs
             mapped_players = team_pass_map.keys()
             for p_id in mapped_players:
@@ -333,14 +349,24 @@ for formation in copenhagen_formations:
                         weight=((total_pair_times[p_id][r_id]) / max_played_time) / team_pass_map[p_id][r_id]["num_passes"]
                     )
 
+        goalkeeper_node = formation.goalkeeper
+        opp_goalkeeper_node = opposing_formation.goalkeeper
+        original_pass_map = pass_map
+        original_opposing_pass_map = opposing_pass_map
+        if role_grouped:
+            goalkeeper_node = 1
+            opp_goalkeeper_node = 1
+            _, pass_map = onet.convert_pass_map_to_roles(team_object, pass_map)
+            _, opposing_pass_map = onet.convert_pass_map_to_roles(opposing_team_object, opposing_pass_map)
+
         # Centrality measures
         betweenness = current_flow_betweenness_directed(
             graphs['scaled_graph'],
-            start_node=formation.goalkeeper
+            start_node=goalkeeper_node
         )
         opp_betweenness = current_flow_betweenness_directed(
             opposing_graphs['scaled_graph'],
-            start_node=opposing_formation.goalkeeper
+            start_node=opp_goalkeeper_node
         )
         print("BETWEENNESS")
         # for key, value in sorted(betweenness.items(), key=lambda t:-t[1]):
@@ -355,11 +381,11 @@ for formation in copenhagen_formations:
 
         edge_betweenness = current_flow_edge_betweenness_directed(
             graphs['scaled_graph'],
-            start_node=formation.goalkeeper
+            start_node=goalkeeper_node
         )
         opp_edge_betweenness = current_flow_edge_betweenness_directed(
             opposing_graphs['scaled_graph'],
-            start_node=opposing_formation.goalkeeper
+            start_node=opp_goalkeeper_node
         )
         print("EDGE BETWEENNESS (TOP 10)")
         print("Team {}".format(team_object.team_id))
@@ -373,11 +399,11 @@ for formation in copenhagen_formations:
 
         closenesses = current_flow_closeness_directed(
             graphs['scaled_graph'],
-            start_node=formation.goalkeeper
+            start_node=goalkeeper_node
         )
         opp_closenesses = current_flow_closeness_directed(
             opposing_graphs['scaled_graph'],
-            start_node=opposing_formation.goalkeeper
+            start_node=opp_goalkeeper_node
         )
         print("CLOSENESS")
         # for key, value in sorted(closenesses.items(), key=lambda t:-t[1]):
@@ -409,11 +435,14 @@ for formation in copenhagen_formations:
 
         print()
 
-        ns, ac = onet.get_eigenvalues(team_pass_map.keys(), team_pass_map)
+        ns, ac = onet.get_eigenvalues(pass_map.keys(), pass_map)
         print("network strength: {}, algebraic connectivity: {}".format(ns, ac))
 
-        formation.get_formation_graph(pass_map=pass_map)
-        formation.get_formation_graph_by_role(pass_map)
-        # opposing_formation.get_formation_graph(pass_map=opposing_pass_map)
+        if role_grouped:
+            formation.get_formation_graph_by_role(original_pass_map)
+            # opposing_formation.get_formation_graph_by_role(original_opposing_pass_map)
+        else:
+            formation.get_formation_graph(pass_map=pass_map)
+            # opposing_formation.get_formation_graph(pass_map=opposing_pass_map)
 ###
 
