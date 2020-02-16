@@ -266,16 +266,19 @@ if __name__ == "__main__":
 
 
     copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv', copenhagen_team_id)
+    copenhagen_formations = {formation.match_id: formation for formation in copenhagen_formations}
     # opposing_formations = []
 
     # all_copenhagen_match_ids = [984463]
     all_copenhagen_match_ids = [984574, 984459]
 
-    for formation in copenhagen_formations:
-        match_id = formation.match_id
+    # for formation in copenhagen_formations:
+    #     match_id = formation.match_id
 
-        if match_id not in all_copenhagen_match_ids:
-            continue
+    #     if match_id not in all_copenhagen_match_ids:
+    #         continue
+    for match_id in all_copenhagen_match_ids:
+        formation = copenhagen_formations[match_id]
 
         fname = str(match_id)
         match_OPTA = opta.read_OPTA_f7(fpath, fname)
@@ -454,6 +457,7 @@ if __name__ == "__main__":
             ns, ac = onet.get_eigenvalues(pass_map.keys(), pass_map)
             print("network strength: {}, algebraic connectivity: {}".format(ns, ac))
 
+            print(formation.match_id)
             if role_grouped:
                 formation.get_formation_graph_by_role(original_pass_map)
                 # opposing_formation.get_formation_graph_by_role(original_opposing_pass_map)

@@ -244,6 +244,10 @@ if __name__ == "__main__":
             opposing_team_objects[match_id] = home_team
 
     copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv', copenhagen_team_id)
+    for formation in copenhagen_formations:
+        formation.add_team_object(team_objects[formation.match_id])
+        formation.add_goalkeeper()
+
     formations = {formation.match_id: formation for formation in copenhagen_formations}
 
     num_bits = 13
@@ -302,6 +306,8 @@ if __name__ == "__main__":
                     [r_id for r_id, _ in sorted(betweenness.items(), key=lambda t:-t[1])]
                 ))
 
+    print()
+
     if True:
         print("------ CENTRALITY (CLOSENESS) ORDERING ------")
         for match_id in all_copenhagen_match_ids:
@@ -341,4 +347,32 @@ if __name__ == "__main__":
                     formation.opp_formation_1 if half == 1 else formation.opp_formation_2,
                     [r_id for r_id, _ in sorted(closeness.items(), key=lambda t:-t[1])]
                 ))
+
+    print()
+
+    if True:
+        print("------ DIFFERENCING NETWORKS ------")
+        matches_to_compare = [984574, 984459]
+        formations = [formations[match_id] for match_id in matches_to_compare]
+        match_OPTAs = [matches[match_id] for match_id in matches_to_compare]
+        home_or_away_strings = [home_or_away[match_id] for match_id in matches_to_compare]
+
+        for half in [0, 1, 2]:
+            pass_maps = [
+                onet.get_all_pass_destinations(
+                    match_OPTA,
+                    team=home_or_away_string,
+                    exclude_subs=False,
+                    half=half
+                )
+                for match_OPTA, home_or_away_string in zip(match_OPTAs, home_or_away_strings)
+            ]
+
+            formations[0].get_formation_difference_graph(
+                pass_maps[0],
+                formations[1],
+                pass_maps[1]
+            )
+
+
 

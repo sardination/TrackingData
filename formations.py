@@ -123,13 +123,22 @@ class Formation:
 
                 G.add_edge(p_id, r_id, weight=total_passes)
 
-            edge_widths = [G[u][v]['weight'] for u,v in G.edges()]
-            max_width = max(edge_widths)
+            edge_widths = {(u,v): G[u][v]['weight'] for u,v in G.edges()}
+            # max_width = max(edge_widths)
+            max_width = max(edge_widths.values())
             max_thickness = 3
             # edge_widths = [(w / max_width) * max_thickness for w in edge_widths]
             # normalize edge_widths the same way across networks
             static_largest_passes = 30
-            edge_widths = [(w / static_largest_passes) * max_thickness for w in edge_widths]
+            # edge_widths = [(w / static_largest_passes) * max_thickness for w in edge_widths]
+            edge_widths = {edge: (w / static_largest_passes) * max_thickness for edge, w in edge_widths.items()}
+
+            nx.set_edge_attributes(
+                G,
+                edge_widths,
+                'width'
+            )
+            edge_widths = [edge_widths[e] for e in G.edges()]# need to pass list into draw function
 
         for p_id in player_ids:
             G.add_node(p_id)
@@ -142,9 +151,21 @@ class Formation:
         #     for n in G.nodes()]
         # normalize node size the same way across networks
         static_largest_coefficient = 5 ** 3
-        node_sizes = [(clustering_coeffs[n] ** 3 / static_largest_coefficient) * max_node_size if clustering_coeffs.get(n) is not None else 0
-            for n in G.nodes()]
+        node_sizes = {n: (clustering_coeffs[n] ** 3 / static_largest_coefficient) * max_node_size if clustering_coeffs.get(n) is not None else 0
+            for n in G.nodes()}
         # TODO: accommodate this for subs
+
+        nx.set_node_attributes(
+            G,
+            player_locations,
+            'pos'
+        )
+        nx.set_node_attributes(
+            G,
+            node_sizes,
+            'size'
+        )
+        node_sizes = [node_sizes[n] for n in G.nodes()] # need to pass list into draw function
 
         nx.draw_networkx_nodes(
             G,
@@ -178,6 +199,114 @@ class Formation:
         role_mappings, role_pass_map = onet.convert_pass_map_to_roles(self.team_object, pass_map)
 
         return self.get_formation_graph(pass_map=role_pass_map, transfer_map=role_mappings)
+
+
+    def get_formation_difference_graph(self, this_pass_map, other_formation, other_pass_map):
+        """
+        Creates a difference graph between this formation and `other_formation`.
+        This really only makes sense for role graphs, as players change from match
+        to match.
+
+        If this formation has a thicker edge than `other_formation`, the difference
+        edge will be green, and red if otherwise. The thickness will represent the
+        size of the difference.
+
+        Likewise, if this formation has a larger node than `other_formation`, the difference
+        node will be green, and red if otherwise. The size will represent the size of the
+        difference.
+
+        TODO: does direction of passes matter?
+        """
+
+        this_formation_graph = self.get_formation_graph_by_role(this_pass_map)
+        other_formation_graph = other_formation.get_formation_graph_by_role(other_pass_map)
+
+        difference_graph = nx.Graph()
+
+        this_nodes = set(this_formation_graph.nodes())
+        other_nodes = set(other_formation_graph.nodes())
+
+        this_node_sizes = nx.get_node_attributes(this_formation_graph, 'size')
+        other_node_sizes = nx.get_node_attributes(other_formation_graph, 'size')
+
+        this_node_locations = nx.get_node_attributes(this_formation_graph, 'pos')
+        other_node_locations = nx.get_node_attributes(other_formation_graph, 'pos')
+
+        # gets node difference colors and sizes
+        node_sizes = {}
+        node_locations = {}
+        for node in this_nodes.difference(other_nodes):
+            difference_graph.add_node(node)
+            node_sizes[node] = this_node_sizes[node]
+            node_locations[node] = this_node_locations[node]
+
+        for node in other_nodes.difference(this_nodes):
+            difference_graph.add_node(node)
+            node_sizes[node] = -other_node_sizes[node]
+            node_locations[node] = other_node_locations[node]
+
+        for node in this_nodes.intersection(other_nodes):
+            difference_graph.add_node(node)
+            node_sizes[node] = this_node_sizes[node] - other_node_sizes[node]
+            node_locations[node] = this_node_locations[node]
+
+        node_colors = {node: 'red' if size < 0 else 'green' for node, size in node_sizes.items()}
+        node_sizes = {node: abs(size) for node, size in node_sizes.items()}
+
+        # get edge difference colors and sizes
+        edge_widths = {source: {dest: 0 for dest in difference_graph.nodes()} for source in difference_graph.nodes()}
+        edge_colors = {source: {dest: None for dest in difference_graph.nodes()} for source in difference_graph.nodes()}
+        # for source, dest in difference_graph.edges():
+        #     this_width = 0
+        #     other_width = 0
+        #     if source in this_nodes and dest in this_nodes:
+        #         this_width = this_formation_graph[source][dest]
+        #     if source in other_nodes and dest in other_nodes:
+        #         other_width = this_formation_graph[source][dest]
+        #     diff_width = this_width - other_width
+        #     edge_widths.append(abs(diff_width))
+        #     edge_colors.append('red' if diff_width < 0 else 'green')
+
+        #     difference_graph.add_edge(source, dest, weight=abs(diff_width))
+        for source in difference_graph.nodes():
+            for dest in difference_graph.nodes():
+                this_width = 0
+                other_width = 0
+                if (source, dest) in this_formation_graph.edges():
+                    this_width = this_formation_graph[source][dest]['width']
+                if (source, dest) in other_formation_graph.edges():
+                    other_width = other_formation_graph[source][dest]['width']
+                diff_width = this_width - other_width
+                edge_widths[source][dest] = abs(diff_width)
+                edge_colors[source][dest] = 'red' if diff_width < 0 else 'green'
+
+                difference_graph.add_edge(source, dest, weight=abs(diff_width))
+
+        nx.draw_networkx_nodes(
+            difference_graph,
+            node_locations,
+            node_size=[node_sizes[node] for node in difference_graph.nodes()],
+            node_color=[node_colors[node] for node in difference_graph.nodes()]
+        )
+        nx.draw_networkx_labels(
+            difference_graph,
+            node_locations,
+            {node:node for node in difference_graph.nodes()},
+            font_size=12,
+            font_family='sans-serif',
+            font_color='black'
+        )
+
+        nx.draw_networkx_edges(
+            difference_graph,
+            node_locations,
+            width=[edge_widths[u][v] for u,v in difference_graph.edges()],
+            edge_color=[edge_colors[u][v] for u,v in difference_graph.edges()]
+        )
+
+        plt.axis('off')
+        plt.show()
+        return difference_graph
 
 
 def copy_formation(formation):
