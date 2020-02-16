@@ -176,6 +176,7 @@ def get_eigenvalues(mapped_players, pass_map):
     total_passes = sum([pass_map[p_id][r_id]["num_passes"] for r_id in mapped_players for p_id in mapped_players])
 
     weighted_adjacency_matrix = get_weighted_adjacency_matrix(mapped_players, pass_map) / total_passes
+    # print(weighted_adjacency_matrix)
     eigenvalues, _ = np.linalg.eig(weighted_adjacency_matrix)
 
     network_strength = max(eigenvalues)
@@ -489,7 +490,11 @@ def map_weighted_passing_network(match_OPTA, team="home", exclude_subs=False, us
     clustering_coeffs = get_clustering_coefficients(pass_map.keys(), pass_map, weighted=True)
     max_clustering_coeff = max(clustering_coeffs.values()) ** 3 # ^ 3 to exaggerate effect
     max_node_size = 1200
-    node_sizes = [(clustering_coeffs[n] ** 3 / max_clustering_coeff) * max_node_size for n in G.nodes()]
+    # node_sizes = [(clustering_coeffs[n] ** 3 / max_clustering_coeff) * max_node_size for n in G.nodes()]
+    # normalize node size the same way across networks
+    static_largest_coefficient = 5 ** 3
+    node_sizes = [(clustering_coeffs[n] ** 3 / static_largest_coefficient) * max_node_size if clustering_coeffs.get(n) is not None else 0
+        for n in G.nodes()]
 
     # nx.draw_networkx_nodes(G, pos, node_size=700)
     for position, node_group_info in node_groups.items():

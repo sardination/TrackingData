@@ -142,100 +142,203 @@ def get_graph_fingerprint(match, team_id, bit_ordering=None):
     return fingerprint.astype(int)
 
 
-fpath = "../Copenhagen/"
-all_copenhagen_match_ids = [
-    984459,
-    984463,
-    984468,
-    984478,
-    984486,
-    984496,
-    984507,
-    984514,
-    984517,
-    984528,
-    984533,
-    984542,
-    984548,
-    984552,
-    984558,
-    984567,
-    984574,
-    984581,
-    984591,
-    984596,
-    984606,
-    984612,
-    984615,
-    984625,
-    984634
-]
-copenhagen_team_id = 569
+def swap_distance(fingerprint_1, fingerprint_2):
+    """
+    Find the distance via number of swaps necessary to go from `fingerprint_1`
+    to `fingerprint_2`
 
-matches = {}
-home_or_away = {}
-team_objects = {}
-for match_id in all_copenhagen_match_ids:
-    fname = str(match_id)
-    match_OPTA = opta.read_OPTA_f7(fpath, fname)
-    match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
+    https://en.wikipedia.org/wiki/Damerau%E2%80%93Levenshtein_distance
+    """
+    found = [[None] * (len(fingerprint_2) + 1) for _ in range(len(fingerprint_1) + 1)]
 
-    matches[match_id] = match_OPTA
+    return swap_distance_dynamic(fingerprint_1, fingerprint_2, found)
 
-    home_team = onet.get_team(match_OPTA, team="home")
-    away_team = onet.get_team(match_OPTA, team="away")
-    home_or_away[match_id] = "home"
-    team_objects[match_id] = home_team
-    if home_team.team_id != copenhagen_team_id:
-        home_or_away[match_id] = "away"
-        team_objects[match_id] = away_team
+def swap_distance_dynamic(fingerprint_1, fingerprint_2, found):
+    """
+    Swap distance with a tracking matrix
+    """
+    sub_1 = len(fingerprint_1)
+    sub_2 = len(fingerprint_2)
 
-copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv', copenhagen_team_id)
-formations = {formation.match_id: formation for formation in copenhagen_formations}
+    if found[sub_1][sub_2] is not None:
+        return found[sub_1][sub_2]
 
-num_bits = 13
-bit_ordering = list(range(num_bits))
-random.shuffle(bit_ordering)
+    values = []
+    if sub_1 == 0 and sub_2 == 0:
+        val =  0
+        values.append(val)
 
-if False:
-    print("------ FINGERPRINTS ------")
-    fingerprints = {}
+    if sub_1 > 0: # deletion
+        val = swap_distance_dynamic(fingerprint_1[:-1], fingerprint_2, found) + 1
+        values.append(val)
+
+    if sub_2 > 0: # insertion
+        val = swap_distance_dynamic(fingerprint_1, fingerprint_2[:-1], found) + 1
+        values.append(val)
+
+    if sub_1 > 0 and sub_2 > 0: # swap
+        diff = int(fingerprint_1[-1] != fingerprint_2[-1])
+        val = swap_distance_dynamic(fingerprint_1[:-1], fingerprint_2[:-1], found) + diff
+        values.append(val)
+
+    if sub_1 > 1 and sub_2 > 1 and fingerprint_1[-1] == fingerprint_2[-2] and fingerprint_1[-2] == fingerprint_2[-1]:
+        val = swap_distance_dynamic(fingerprint_1[:-2], fingerprint_2[:-2], found) + 1
+        values.append(val)
+
+    new_found = min(values)
+    found[sub_1][sub_2] = new_found
+
+    return new_found
+
+
+if __name__ == "__main__":
+    fpath = "../Copenhagen/"
+    all_copenhagen_match_ids = [
+        984459,
+        984463,
+        984468,
+        984478,
+        984486,
+        984496,
+        984507,
+        984514,
+        984517,
+        984528,
+        984533,
+        984542,
+        984548,
+        984552,
+        984558,
+        984567,
+        984574,
+        984581,
+        984591,
+        984596,
+        984606,
+        984612,
+        984615,
+        984625,
+        984634
+    ]
+    copenhagen_team_id = 569
+
+    matches = {}
+    home_or_away = {}
+    team_objects = {}
+    opposing_team_objects = {}
     for match_id in all_copenhagen_match_ids:
-        match_OPTA = matches[match_id]
-        fingerprints[match_id] = get_graph_fingerprint(match_OPTA, copenhagen_team_id, bit_ordering=bit_ordering)
-        print("Match {}: {}".format(match_id, fingerprints[match_id]))
+        fname = str(match_id)
+        match_OPTA = opta.read_OPTA_f7(fpath, fname)
+        match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
 
-print()
+        matches[match_id] = match_OPTA
 
-if True:
-    print("------ CENTRALITY (BETWEENNESS) ORDERING ------")
-    for match_id in all_copenhagen_match_ids:
-        match_OPTA = matches[match_id]
-        team_object = team_objects[match_id]
-        formation = formations[match_id]
+        home_team = onet.get_team(match_OPTA, team="home")
+        away_team = onet.get_team(match_OPTA, team="away")
+        home_or_away[match_id] = "home"
+        team_objects[match_id] = home_team
+        opposing_team_objects[match_id] = away_team
+        if home_team.team_id != copenhagen_team_id:
+            home_or_away[match_id] = "away"
+            team_objects[match_id] = away_team
+            opposing_team_objects[match_id] = home_team
 
-        pass_map = onet.get_all_pass_destinations(
-            match_OPTA,
-            team=home_or_away[match_id],
-            exclude_subs=False,
-            half=0 # full game
-        )
-        player_times = team_object.get_on_pitch_periods()
-        graphs = centrality.get_directed_graphs(
-            pass_map,
-            player_times,
-            team_object,
-            role_grouped=True
-        )
+    copenhagen_formations = formations.read_formations_from_csv('../copenhagen_formations.csv', copenhagen_team_id)
+    formations = {formation.match_id: formation for formation in copenhagen_formations}
 
-        betweenness = centrality.current_flow_betweenness_directed(
-            graphs['scaled_graph'],
-            start_node=1 # goalkeeper role
-        )
-        print("Match {}, Opposing Formation {}/{}:\t {}".format(
-            match_id,
-            formation.opp_formation_1,
-            formation.opp_formation_2,
-            [r_id for r_id, _ in sorted(betweenness.items(), key=lambda t:-t[1])]
-        ))
+    num_bits = 13
+    bit_ordering = list(range(num_bits))
+    random.shuffle(bit_ordering)
+
+    # all_copenhagen_match_ids = [984574, 984459]
+
+    if True:
+        print("------ FINGERPRINTS ------")
+        fingerprints = {}
+        for match_id in all_copenhagen_match_ids:
+            match_OPTA = matches[match_id]
+            fingerprints[match_id] = get_graph_fingerprint(match_OPTA, copenhagen_team_id, bit_ordering=bit_ordering)
+            print("Match {}: {}".format(match_id, fingerprints[match_id]))
+
+    print()
+
+    if True:
+        print("------ CENTRALITY (BETWEENNESS) ORDERING ------")
+        for match_id in all_copenhagen_match_ids:
+            match_OPTA = matches[match_id]
+            home_or_away_string = home_or_away[match_id]
+            team_object = team_objects[match_id]
+            opposing_team_object = opposing_team_objects[match_id]
+            formation = formations[match_id]
+
+            print("Against {} Score {}-{}".format(
+                opposing_team_object.team_id,
+                match_OPTA.homegoals if home_or_away_string == "home" else match_OPTA.awaygoals,
+                match_OPTA.awaygoals if home_or_away_string == "home" else match_OPTA.homegoals
+            ))
+            for half in [0,1,2]:
+                pass_map = onet.get_all_pass_destinations(
+                    match_OPTA,
+                    team=home_or_away_string,
+                    exclude_subs=False,
+                    half=half
+                )
+                player_times = team_object.get_on_pitch_periods()
+                graphs = centrality.get_directed_graphs(
+                    pass_map,
+                    player_times,
+                    team_object,
+                    role_grouped=True
+                )
+
+                betweenness = centrality.current_flow_betweenness_directed(
+                    graphs['scaled_graph'],
+                    start_node=1 # goalkeeper role
+                )
+                print("Match {}.{}, Opposing Formation {}:\t {}".format(
+                    match_id,
+                    half,
+                    formation.opp_formation_1 if half == 1 else formation.opp_formation_2,
+                    [r_id for r_id, _ in sorted(betweenness.items(), key=lambda t:-t[1])]
+                ))
+
+    if True:
+        print("------ CENTRALITY (CLOSENESS) ORDERING ------")
+        for match_id in all_copenhagen_match_ids:
+            match_OPTA = matches[match_id]
+            home_or_away_string = home_or_away[match_id]
+            team_object = team_objects[match_id]
+            opposing_team_object = opposing_team_objects[match_id]
+            formation = formations[match_id]
+
+            print("Against {} Score {}-{}".format(
+                opposing_team_object.team_id,
+                match_OPTA.homegoals if home_or_away_string == "home" else match_OPTA.awaygoals,
+                match_OPTA.awaygoals if home_or_away_string == "home" else match_OPTA.homegoals
+            ))
+            for half in [0,1,2]:
+                pass_map = onet.get_all_pass_destinations(
+                    match_OPTA,
+                    team=home_or_away_string,
+                    exclude_subs=False,
+                    half=half
+                )
+                player_times = team_object.get_on_pitch_periods()
+                graphs = centrality.get_directed_graphs(
+                    pass_map,
+                    player_times,
+                    team_object,
+                    role_grouped=True
+                )
+
+                closeness = centrality.current_flow_closeness_directed(
+                    graphs['scaled_graph'],
+                    start_node=1 # goalkeeper role
+                )
+                print("Match {}.{}, Opposing Formation {}:\t {}".format(
+                    match_id,
+                    half,
+                    formation.opp_formation_1 if half == 1 else formation.opp_formation_2,
+                    [r_id for r_id, _ in sorted(closeness.items(), key=lambda t:-t[1])]
+                ))
 

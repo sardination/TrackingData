@@ -269,7 +269,7 @@ if __name__ == "__main__":
     # opposing_formations = []
 
     # all_copenhagen_match_ids = [984463]
-    all_copenhagen_match_ids = [984496]
+    all_copenhagen_match_ids = [984574, 984459]
 
     for formation in copenhagen_formations:
         match_id = formation.match_id
@@ -380,55 +380,55 @@ if __name__ == "__main__":
                 graphs['scaled_graph'],
                 start_node=goalkeeper_node
             )
-            opp_betweenness = current_flow_betweenness_directed(
-                opposing_graphs['scaled_graph'],
-                start_node=opp_goalkeeper_node
-            )
-            print("BETWEENNESS")
-            # for key, value in sorted(betweenness.items(), key=lambda t:-t[1]):
-            #     print("{}: {}".format(key, value))
-            for (k, v), (ok, ov) in zip(
-                sorted(betweenness.items(), key=lambda t:-t[1]),
-                sorted(opp_betweenness.items(), key=lambda t:-t[1])
-            ):
-                print("{}: {} \t {}: {}".format(k, v, ok, ov))
+            # opp_betweenness = current_flow_betweenness_directed(
+            #     opposing_graphs['scaled_graph'],
+            #     start_node=opp_goalkeeper_node
+            # )
+            # print("BETWEENNESS")
+            # # for key, value in sorted(betweenness.items(), key=lambda t:-t[1]):
+            # #     print("{}: {}".format(key, value))
+            # for (k, v), (ok, ov) in zip(
+            #     sorted(betweenness.items(), key=lambda t:-t[1]),
+            #     sorted(opp_betweenness.items(), key=lambda t:-t[1])
+            # ):
+            #     print("{}: {} \t {}: {}".format(k, v, ok, ov))
 
-            print()
+            # print()
 
             edge_betweenness = current_flow_edge_betweenness_directed(
                 graphs['scaled_graph'],
                 start_node=goalkeeper_node
             )
-            opp_edge_betweenness = current_flow_edge_betweenness_directed(
-                opposing_graphs['scaled_graph'],
-                start_node=opp_goalkeeper_node
-            )
-            print("EDGE BETWEENNESS (TOP 10)")
-            print("Team {}".format(team_object.team_id))
-            for key, value in list(sorted(edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
-                print("{} -- {} --> {}: {}".format(key[0], pass_map[key[0]][key[1]]['num_passes'], key[1], value))
-            print("Team {}".format(opposing_team_object.team_id))
-            for key, value in list(sorted(opp_edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
-                print("{} -- {} --> {}: {}".format(key[0], opposing_pass_map[key[0]][key[1]]['num_passes'], key[1], value))
+            # opp_edge_betweenness = current_flow_edge_betweenness_directed(
+            #     opposing_graphs['scaled_graph'],
+            #     start_node=opp_goalkeeper_node
+            # )
+            # print("EDGE BETWEENNESS (TOP 10)")
+            # print("Team {}".format(team_object.team_id))
+            # for key, value in list(sorted(edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
+            #     print("{} -- {} --> {}: {}".format(key[0], pass_map[key[0]][key[1]]['num_passes'], key[1], value))
+            # print("Team {}".format(opposing_team_object.team_id))
+            # for key, value in list(sorted(opp_edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
+            #     print("{} -- {} --> {}: {}".format(key[0], opposing_pass_map[key[0]][key[1]]['num_passes'], key[1], value))
 
-            print()
+            # print()
 
             closenesses = current_flow_closeness_directed(
                 graphs['scaled_graph'],
                 start_node=goalkeeper_node
             )
-            opp_closenesses = current_flow_closeness_directed(
-                opposing_graphs['scaled_graph'],
-                start_node=opp_goalkeeper_node
-            )
-            print("CLOSENESS")
-            # for key, value in sorted(closenesses.items(), key=lambda t:-t[1]):
-            #     print("{}: {}".format(key, value))
-            for (k, v), (ok, ov) in zip(
-                sorted(closenesses.items(), key=lambda t:-t[1]),
-                sorted(opp_closenesses.items(), key=lambda t:-t[1])
-            ):
-                print("{}: {} \t {}: {}".format(k, v, ok, ov))
+            # opp_closenesses = current_flow_closeness_directed(
+            #     opposing_graphs['scaled_graph'],
+            #     start_node=opp_goalkeeper_node
+            # )
+            # print("CLOSENESS")
+            # # for key, value in sorted(closenesses.items(), key=lambda t:-t[1]):
+            # #     print("{}: {}".format(key, value))
+            # for (k, v), (ok, ov) in zip(
+            #     sorted(closenesses.items(), key=lambda t:-t[1]),
+            #     sorted(opp_closenesses.items(), key=lambda t:-t[1])
+            # ):
+            #     print("{}: {} \t {}: {}".format(k, v, ok, ov))
 
             print()
 

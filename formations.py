@@ -126,7 +126,10 @@ class Formation:
             edge_widths = [G[u][v]['weight'] for u,v in G.edges()]
             max_width = max(edge_widths)
             max_thickness = 3
-            edge_widths = [(w / max_width) * max_thickness for w in edge_widths]
+            # edge_widths = [(w / max_width) * max_thickness for w in edge_widths]
+            # normalize edge_widths the same way across networks
+            static_largest_passes = 30
+            edge_widths = [(w / static_largest_passes) * max_thickness for w in edge_widths]
 
         for p_id in player_ids:
             G.add_node(p_id)
@@ -135,7 +138,11 @@ class Formation:
         clustering_coeffs = onet.get_clustering_coefficients(pass_map.keys(), pass_map, weighted=True)
         max_clustering_coeff = max(clustering_coeffs.values()) ** 3 # ^ 3 to exaggerate effect
         max_node_size = 1200
-        node_sizes = [(clustering_coeffs[n] ** 3 / max_clustering_coeff) * max_node_size if clustering_coeffs.get(n) is not None else 0
+        # node_sizes = [(clustering_coeffs[n] ** 3 / max_clustering_coeff) * max_node_size if clustering_coeffs.get(n) is not None else 0
+        #     for n in G.nodes()]
+        # normalize node size the same way across networks
+        static_largest_coefficient = 5 ** 3
+        node_sizes = [(clustering_coeffs[n] ** 3 / static_largest_coefficient) * max_node_size if clustering_coeffs.get(n) is not None else 0
             for n in G.nodes()]
         # TODO: accommodate this for subs
 
