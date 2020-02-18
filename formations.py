@@ -195,6 +195,12 @@ class Formation:
             for i, t_info in enumerate(use_triplets):
                 triplet, num_passes = t_info
 
+                if transfer_map is not None:
+                    new_triplet = []
+                    for p in triplet:
+                        new_triplet.append(transfer_map[p])
+                    triplet = new_triplet
+
                 highlight_color = onet.get_color_by_gradient(
                     float(n - i) / n,
                     low_color = green,
