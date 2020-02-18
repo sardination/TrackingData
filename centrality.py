@@ -458,11 +458,23 @@ if __name__ == "__main__":
             print("network strength: {}, algebraic connectivity: {}".format(ns, ac))
 
             print(formation.match_id)
+
+            # send in highest betweenness edges to highlight on graph
+            highlight_edges = list(sorted(edge_betweenness.items(), key=lambda t:-t[1]))[:10]
+
             if role_grouped:
-                formation.get_formation_graph_by_role(original_pass_map, show_triplets=period)
+                formation.get_formation_graph_by_role(
+                    original_pass_map,
+                    # show_triplets=period
+                    highlight_edges=highlight_edges
+                )
                 # opposing_formation.get_formation_graph_by_role(original_opposing_pass_map)
             else:
-                formation.get_formation_graph(pass_map=pass_map, show_triplets=period)
+                formation.get_formation_graph(
+                    pass_map=pass_map,
+                    # show_triplets=period
+                    highlight_edges=highlight_edges
+                )
                 # opposing_formation.get_formation_graph(pass_map=opposing_pass_map)
     ###
 

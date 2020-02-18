@@ -84,7 +84,7 @@ class Formation:
             self.player_locations.pop(original_player)
             self.player_locations[substitute_player] = original_location
 
-    def get_formation_graph(self, pass_map=None, transfer_map=None, show_triplets=None):
+    def get_formation_graph(self, pass_map=None, transfer_map=None, show_triplets=None, highlight_edges=None):
         """
         Create network graph based on pass map and formation information
 
@@ -92,6 +92,7 @@ class Formation:
             pass_map: dict of dicts with pass details
             transfer_map: dict to map player IDs to different node names (as given in pass_map)
             show_triplets: number of period (0, 1, 2) to show triplets for; None otherwise
+            list of edges (edge, value): to highlight on the graph
         """
 
         G = nx.Graph()
@@ -229,6 +230,28 @@ class Formation:
                 'edge_color'
             )
 
+        elif highlight_edges is not None:
+            # get color from green to yellow
+            green = "00ff00"
+            yellow = "001100"
+
+            n = len(highlight_edges)
+
+            for i, (e, v) in enumerate(highlight_edges):
+                pair = (e[0], e[1])
+                rev_pair = (e[1], e[0])
+
+                highlight_color = onet.get_color_by_gradient(
+                    float(i) / n,
+                    low_color = green,
+                    high_color = yellow
+                )
+
+                if pair in G.edges():
+                    edge_colors[pair] = highlight_color
+                if rev_pair in G.edges():
+                    edge_colors[rev_pair] = highlight_color
+
         if pass_map is not None:
             nx.draw_networkx_edges(
                 G,
@@ -242,7 +265,7 @@ class Formation:
         return G
 
 
-    def get_formation_graph_by_role(self, pass_map, show_triplets=None):
+    def get_formation_graph_by_role(self, pass_map, show_triplets=None, highlight_edges=None):
         """
         Display formation by role rather than player ID. Combine substitutes with
         their target players into one role node.
@@ -253,7 +276,8 @@ class Formation:
         return self.get_formation_graph(
             pass_map=role_pass_map,
             transfer_map=role_mappings,
-            show_triplets=show_triplets
+            show_triplets=show_triplets,
+            highlight_edges=highlight_edges
         )
 
 
