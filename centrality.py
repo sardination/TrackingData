@@ -352,7 +352,7 @@ if __name__ == "__main__":
                         off_player = None
 
             # create a directed graph
-            role_grouped = True ### TOGGLE ###
+            role_grouped = False ### TOGGLE ###
             graphs = get_directed_graphs(
                 pass_map,
                 player_times,
@@ -462,7 +462,7 @@ if __name__ == "__main__":
                 formation.get_formation_graph_by_role(original_pass_map)
                 # opposing_formation.get_formation_graph_by_role(original_opposing_pass_map)
             else:
-                formation.get_formation_graph(pass_map=pass_map)
+                formation.get_formation_graph(pass_map=pass_map, show_triplets=period)
                 # opposing_formation.get_formation_graph(pass_map=opposing_pass_map)
     ###
 

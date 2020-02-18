@@ -54,7 +54,7 @@ def get_color_by_gradient(value, low_color = "0000ff", high_color = "ff0000"):
     high_color_rgb = [int(high_color[i:i+2], 16) for i in range(0, 6, 2)]
 
     grad_rgb = [
-        int((h - l) * value) if h > l else int((l - h) * (1 - value))
+        int(l + (h - l) * value) if h > l else int(h + (l - h) * (1 - value))
         for l,h in zip(low_color_rgb, high_color_rgb)
     ]
 
@@ -80,6 +80,10 @@ def get_team(match_OPTA, team="home"):
 
 
 def get_substitutes(match_OPTA, team="home"):
+    team_object = get_team(match_OPTA, team=team)
+    return get_substitutes_by_team(team_object)
+
+def get_substitutes_by_team(team_object):
     """
     Return a list of players that were substituted in and a list of players that were
     substituted out during the game for the given team
@@ -93,7 +97,7 @@ def get_substitutes(match_OPTA, team="home"):
         substitutes_on, substitutes_off (list, list)
     """
 
-    team_object = get_team(match_OPTA, team=team)
+    # team_object = get_team(match_OPTA, team=team)
     events_raw = [e for e in team_object.events if e.is_substitution]
 
     substitutes_on = []
@@ -109,6 +113,10 @@ def get_substitutes(match_OPTA, team="home"):
 
 
 def get_mapped_players(match_OPTA, team="home", exclude_subs=False, half=0):
+    team_object = get_team(match_OPTA, team=team)
+    return get_mapped_players_by_team(team_object, exclude_subs=exclude_subs, half=half)
+
+def get_mapped_players_by_team(team_object, exclude_subs=False, half=0):
     """
     Find which players have had a role in the game and should be mapped
 
@@ -123,10 +131,11 @@ def get_mapped_players(match_OPTA, team="home", exclude_subs=False, half=0):
         mapped_players (set)
     """
 
-    team_object = get_team(match_OPTA, team=team)
+    # team_object = get_team(match_OPTA, team=team)
     events_raw = [e for e in team_object.events if (e.is_pass or e.is_shot) and (half not in [1,2] or half == e.period_id)]
 
-    exclude_players = get_substitutes(match_OPTA, team=team)[0] if exclude_subs else []
+    # exclude_players = get_substitutes(match_OPTA, team=team)[0] if exclude_subs else []
+    exclude_players = get_substitutes_by_team(team_object)[0] if exclude_subs else []
 
     mapped_players = set([])
 
@@ -556,7 +565,12 @@ def map_network_by_formation(match_OPTA, formation):
     G = formation.get_formation_graph()
 
 
-def find_player_triplets(match_OPTA, team="home", exclude_subs=False):
+def find_player_triplets(match_OPTA, team="home", exclude_subs=False, half=0):
+    team_object = get_team(match_OPTA, team=team)
+
+    return find_player_triplets_by_team(team_object, exclude_subs=exclude_subs, half=half)
+
+def find_player_triplets_by_team(team_object, exclude_subs=False, half=0):
     """
     Determine triplets of players that are strongly connected
 
@@ -568,12 +582,13 @@ def find_player_triplets(match_OPTA, team="home", exclude_subs=False):
         exclude_subs (bool): whether to include subs in the triplets or not
 
     Return:
-        sorted_triples (list of tuples): list of triplets (members, weight) in descending order of weight
+        sorted_triples (list of tuples): list of triplets (members, weight) in ascending order of weight
     """
 
-    team_object = get_team(match_OPTA, team=team)
-    mapped_players = get_mapped_players(match_OPTA, team=team, exclude_subs=exclude_subs)
-    all_events = [e for e in team_object.events if e.is_pass or e.is_shot]
+    # team_object = get_team(match_OPTA, team=team)
+    # mapped_players = get_mapped_players(match_OPTA, team=team, exclude_subs=exclude_subs)
+    mapped_players = get_mapped_players_by_team(team_object, exclude_subs=exclude_subs, half=half)
+    all_events = [e for e in team_object.events if e.is_pass or e.is_shot and (half not in [1,2] or half == e.period_id)]
 
     triplet_scores = {}
     for poss_triplet in combinations([p_id for p_id in mapped_players], 3):

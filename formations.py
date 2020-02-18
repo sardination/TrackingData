@@ -84,13 +84,14 @@ class Formation:
             self.player_locations.pop(original_player)
             self.player_locations[substitute_player] = original_location
 
-    def get_formation_graph(self, pass_map=None, transfer_map=None):
+    def get_formation_graph(self, pass_map=None, transfer_map=None, show_triplets=None):
         """
         Create network graph based on pass map and formation information
 
         Kwargs:
             pass_map: dict of dicts with pass details
             transfer_map: dict to map player IDs to different node names (as given in pass_map)
+            show_triplets: number of period (0, 1, 2) to show triplets for; None otherwise
         """
 
         G = nx.Graph()
@@ -182,15 +183,60 @@ class Formation:
             font_color='red'
         )
 
+        edge_colors = {e : "black" for e in G.edges()}
+        if show_triplets is not None:
+            triplet_list = onet.find_player_triplets_by_team(self.team_object, half=show_triplets)
+            # top n triplets
+            n = 5
+            use_triplets = triplet_list[-5:]
+            # get color from green to yellow
+            green = "00ff00"
+            yellow = "001100"
+            for i, t_info in enumerate(use_triplets):
+                triplet, num_passes = t_info
+
+                highlight_color = onet.get_color_by_gradient(
+                    float(n - i) / n,
+                    low_color = green,
+                    high_color = yellow
+                )
+
+                for i, p in enumerate(triplet):
+                    p2_i = i + 1
+                    if i == len(triplet) - 1:
+                        p2_i = 0
+                    pair = (triplet[i], triplet[p2_i])
+                    rev_pair = (triplet[p2_i], triplet[i])
+
+                    print(pair)
+
+                    if pair in G.edges():
+                        edge_colors[pair] = highlight_color
+                    if rev_pair in G.edges():
+                        edge_colors[rev_pair] = highlight_color
+
+                print()
+
+            nx.set_edge_attributes(
+                G,
+                edge_colors,
+                'edge_color'
+            )
+
         if pass_map is not None:
-            nx.draw_networkx_edges(G, player_locations, width=edge_widths)
+            nx.draw_networkx_edges(
+                G,
+                player_locations,
+                width=edge_widths,
+                edge_color=[edge_colors[e] for e in G.edges()]
+            )
 
         plt.axis('off')
         plt.show()
         return G
 
 
-    def get_formation_graph_by_role(self, pass_map):
+    def get_formation_graph_by_role(self, pass_map, show_triplets=None):
         """
         Display formation by role rather than player ID. Combine substitutes with
         their target players into one role node.
@@ -198,7 +244,11 @@ class Formation:
 
         role_mappings, role_pass_map = onet.convert_pass_map_to_roles(self.team_object, pass_map)
 
-        return self.get_formation_graph(pass_map=role_pass_map, transfer_map=role_mappings)
+        return self.get_formation_graph(
+            pass_map=role_pass_map,
+            transfer_map=role_mappings,
+            show_triplets=show_triplets
+        )
 
 
     def get_formation_difference_graph(self, this_pass_map, other_formation, other_pass_map):
@@ -256,18 +306,7 @@ class Formation:
         # get edge difference colors and sizes
         edge_widths = {source: {dest: 0 for dest in difference_graph.nodes()} for source in difference_graph.nodes()}
         edge_colors = {source: {dest: None for dest in difference_graph.nodes()} for source in difference_graph.nodes()}
-        # for source, dest in difference_graph.edges():
-        #     this_width = 0
-        #     other_width = 0
-        #     if source in this_nodes and dest in this_nodes:
-        #         this_width = this_formation_graph[source][dest]
-        #     if source in other_nodes and dest in other_nodes:
-        #         other_width = this_formation_graph[source][dest]
-        #     diff_width = this_width - other_width
-        #     edge_widths.append(abs(diff_width))
-        #     edge_colors.append('red' if diff_width < 0 else 'green')
 
-        #     difference_graph.add_edge(source, dest, weight=abs(diff_width))
         for source in difference_graph.nodes():
             for dest in difference_graph.nodes():
                 this_width = 0
