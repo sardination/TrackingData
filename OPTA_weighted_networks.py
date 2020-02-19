@@ -163,7 +163,8 @@ def get_weighted_adjacency_matrix(mapped_players, pass_map):
     weighted_adjacency_matrix = np.array([[0] * len(mapped_players) for _ in range(len(mapped_players))])
     for p_index, p_id in enumerate(mapped_players):
         for r_index, r_id in enumerate(mapped_players):
-            weighted_adjacency_matrix[p_index][r_index] = pass_map[p_id][r_id]['num_passes']
+            if p_id in pass_map.keys() and r_id in pass_map[p_id].keys():
+                weighted_adjacency_matrix[p_index][r_index] = pass_map[p_id][r_id]['num_passes']
 
     return weighted_adjacency_matrix
 

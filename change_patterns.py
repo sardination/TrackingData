@@ -3,6 +3,7 @@ import OPTA as opta
 import OPTA_weighted_networks as onet
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def plot_closeness_vs_betweenness(match_OPTA, team_id, match_id=None):
@@ -47,7 +48,7 @@ def plot_closeness_vs_betweenness(match_OPTA, team_id, match_id=None):
         y = [betweenness[p] for p in players]
 
 
-        fig,ax = plt.subplots()
+        fig, ax = plt.subplots()
         ax.set_xlabel("closeness")
         ax.set_ylabel("betweenness")
         ax.set_title("Match {} Team {}".format(match_id, team_id))
@@ -118,7 +119,7 @@ def plot_cross_match_centrality(matches, team_id, metric="closeness"):
     x = [metric_results[match_ids[0]].get(p) if p in metric_results[match_ids[0]].keys() else 0 for p in players]
     y = [metric_results[match_ids[1]].get(p) if p in metric_results[match_ids[1]].keys() else 0 for p in players]
 
-    fig,ax = plt.subplots()
+    fig, ax = plt.subplots()
     ax.set_xlabel("Match {} {}".format(
         match_ids[0],
         metric
@@ -141,6 +142,31 @@ def plot_cross_match_centrality(matches, team_id, metric="closeness"):
     for i, p_id in enumerate(players):
         ax.annotate(p_id, (x[i], y[i]))
 
+    plt.show()
+
+
+def adjacency_heatmap(match, team_id):
+    """
+    Heatmap of normalized edge weights between players.
+    Edge weights are normalized across all matches, not
+    just within a single match.
+    """
+    team_object = match.team_map.get(team_id)
+    if team_object is None:
+        raise("Team not in match")
+    home_or_away = "home" if team_object == match.hometeam else "away"
+
+    pass_map = onet.get_all_pass_destinations(match, team=home_or_away, exclude_subs=False, half=0)
+    role_mappings, role_pass_map = onet.convert_pass_map_to_roles(team_object, pass_map)
+
+    weighted_adjacency_matrix = np.array(onet.get_weighted_adjacency_matrix(
+        sorted(list(set(role_mappings.values()))),
+        role_pass_map
+    ))
+
+    # TODO: heatmap weights by role vs role
+    fig, ax = plt.subplots()
+    plt.imshow(weighted_adjacency_matrix, cmap='hot', interpolation='nearest')
     plt.show()
 
 
@@ -188,6 +214,7 @@ if __name__ == "__main__":
 
     for match_id in all_copenhagen_match_ids:
         plot_closeness_vs_betweenness(matches[match_id], copenhagen_team_id, match_id = match_id)
+        adjacency_heatmap(matches[match_id], copenhagen_team_id)
 
     plot_cross_match_centrality(matches, copenhagen_team_id)
     plot_cross_match_centrality(matches, copenhagen_team_id, metric="betweenness")
