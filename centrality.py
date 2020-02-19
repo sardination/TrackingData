@@ -352,7 +352,7 @@ if __name__ == "__main__":
                         off_player = None
 
             # create a directed graph
-            role_grouped = False ### TOGGLE ###
+            role_grouped = True ### TOGGLE ###
             graphs = get_directed_graphs(
                 pass_map,
                 player_times,
