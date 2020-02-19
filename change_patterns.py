@@ -2,6 +2,7 @@ import centrality
 import OPTA as opta
 import OPTA_weighted_networks as onet
 
+import matplotlib.colors as mpl_colors
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -166,7 +167,12 @@ def adjacency_heatmap(match, team_id):
 
     # TODO: heatmap weights by role vs role
     fig, ax = plt.subplots()
-    plt.imshow(weighted_adjacency_matrix, cmap='hot', interpolation='nearest')
+    plt.imshow(
+        weighted_adjacency_matrix,
+        cmap='hot',
+        interpolation='nearest',
+        norm=mpl_colors.Normalize(vmin=0, vmax=30)
+    )
     plt.show()
 
 
@@ -209,14 +215,13 @@ if __name__ == "__main__":
         fname = str(match_id)
         match_OPTA = opta.read_OPTA_f7(fpath, fname)
         match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
-
         matches[match_id] = match_OPTA
 
     for match_id in all_copenhagen_match_ids:
         plot_closeness_vs_betweenness(matches[match_id], copenhagen_team_id, match_id = match_id)
+    for match_id in all_copenhagen_match_ids:
         adjacency_heatmap(matches[match_id], copenhagen_team_id)
 
     plot_cross_match_centrality(matches, copenhagen_team_id)
     plot_cross_match_centrality(matches, copenhagen_team_id, metric="betweenness")
-
 
