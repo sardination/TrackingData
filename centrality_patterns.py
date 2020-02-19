@@ -59,22 +59,31 @@ def plot_closeness_vs_betweenness(match_OPTA, team_id, match_id=None):
         plt.show()
 
 
-def plot_cross_match_closeness(matches, team_id):
+def plot_cross_match_centrality(matches, team_id, metric="closeness"):
     """
-    Plot closeness of two matches against each other on opposing
-    axes.
+    Plot one centrality measure of two matches against each other on
+    opposing axes.
 
     Args:
         matches (dict): keyed by match_id, values are matchOPTA objects
         team_id (int): ID for the team in questions
+    Kwargs:
+        metric (string): the metric used for the match-to-match comparison
     """
+
+    allowed_metrics = {
+        "closeness": centrality.current_flow_closeness_directed,
+        "betweenness": centrality.current_flow_betweenness_directed
+    }
+    metric_function = allowed_metrics.get(metric)
+    if metric_function is None:
+        raise("Unallowed metric")
 
     match_ids = list(matches.keys())[:2]
     if len(match_ids) != 2:
-        print("Fewer than two matches passed in")
-        return
+        raise("Fewer than two matches passed in")
 
-    closenesses = {}
+    metric_results = {}
 
     players = set()
     for match_id in match_ids:
@@ -82,8 +91,8 @@ def plot_cross_match_closeness(matches, team_id):
 
         team_object = match_OPTA.team_map.get(team_id)
         if team_object is None:
-            print("Team not in match")
-            return
+            raise("Team not in match")
+
         home_or_away = "home" if team_object == match_OPTA.hometeam else "away"
 
         player_times = team_object.get_on_pitch_periods()
@@ -99,20 +108,34 @@ def plot_cross_match_closeness(matches, team_id):
         )
         players = players.union(set(graphs['scaled_graph'].nodes()))
 
-        closenesses[match_id] = centrality.current_flow_closeness_directed(
+        metric_results[match_id] = metric_function(
             graphs['scaled_graph'],
             start_node=1
         )
 
     players = list(players)
 
-    x = [closenesses[match_ids[0]].get(p) if p in closenesses[match_ids[0]].keys() else 0 for p in players]
-    y = [closenesses[match_ids[1]].get(p) if p in closenesses[match_ids[1]].keys() else 0 for p in players]
+    x = [metric_results[match_ids[0]].get(p) if p in metric_results[match_ids[0]].keys() else 0 for p in players]
+    y = [metric_results[match_ids[1]].get(p) if p in metric_results[match_ids[1]].keys() else 0 for p in players]
 
     fig,ax = plt.subplots()
-    ax.set_xlabel("Match {} closeness".format(match_ids[0]))
-    ax.set_ylabel("Match {} closeness".format(match_ids[1]))
+    ax.set_xlabel("Match {} {}".format(
+        match_ids[0],
+        metric
+    ))
+    ax.set_ylabel("Match {} {}".format(
+        match_ids[1],
+        metric
+    ))
     ax.set_title("Team {}".format(team_id))
+
+    # draw center line
+    line_x_vals = [
+        min(set(x).union(set(y))),
+        max(set(x).union(set(y)))
+    ]
+    line_y_vals = line_x_vals
+    plt.plot(line_x_vals, line_y_vals, '--', color='r')
 
     ax.scatter(x, y)
     for i, p_id in enumerate(players):
@@ -166,5 +189,7 @@ if __name__ == "__main__":
     for match_id in all_copenhagen_match_ids:
         plot_closeness_vs_betweenness(matches[match_id], copenhagen_team_id, match_id = match_id)
 
-    plot_cross_match_closeness(matches, copenhagen_team_id)
+    plot_cross_match_centrality(matches, copenhagen_team_id)
+    plot_cross_match_centrality(matches, copenhagen_team_id, metric="betweenness")
+
 
