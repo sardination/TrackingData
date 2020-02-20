@@ -3,8 +3,10 @@ import formations
 import OPTA as opta
 import OPTA_weighted_networks as onet
 
+from itertools import combinations
 import numpy as np
 import random
+from scipy import stats
 
 
 def get_bitstrings(match, team_id, bit_ordering=None):
@@ -256,7 +258,7 @@ if __name__ == "__main__":
 
     # all_copenhagen_match_ids = [984574, 984459]
 
-    if True:
+    if False:
         print("------ FINGERPRINTS ------")
         fingerprints = {}
         for match_id in all_copenhagen_match_ids:
@@ -266,7 +268,7 @@ if __name__ == "__main__":
 
     print()
 
-    if True:
+    if False:
         print("------ CENTRALITY (BETWEENNESS) ORDERING ------")
         for match_id in all_copenhagen_match_ids:
             match_OPTA = matches[match_id]
@@ -310,6 +312,9 @@ if __name__ == "__main__":
 
     if True:
         print("------ CENTRALITY (CLOSENESS) ORDERING ------")
+        all_match_centralities = []
+        all_match_index = 0
+        all_match_indices = {}
         for match_id in all_copenhagen_match_ids:
             match_OPTA = matches[match_id]
             home_or_away_string = home_or_away[match_id]
@@ -322,6 +327,7 @@ if __name__ == "__main__":
                 match_OPTA.homegoals if home_or_away_string == "home" else match_OPTA.awaygoals,
                 match_OPTA.awaygoals if home_or_away_string == "home" else match_OPTA.homegoals
             ))
+            match_closenesses = {}
             for half in [0,1,2]:
                 pass_map = onet.get_all_pass_destinations(
                     match_OPTA,
@@ -348,9 +354,30 @@ if __name__ == "__main__":
                     [r_id for r_id, _ in sorted(closeness.items(), key=lambda t:-t[1])]
                 ))
 
+                all_match_centralities.append([closeness[r_id] for r_id in sorted(closeness.keys())])
+                all_match_indices[all_match_index] = {'match': match_id, 'period': half}
+                all_match_index += 1
+
+                match_closenesses[half] = [r_id for r_id, _ in sorted(closeness.items(), key=lambda t:-t[1])]
+                match_closenesses[half] = [i for i, r_id in sorted(
+                    list(enumerate(match_closenesses[half])),
+                    key=lambda t:t[1]
+                )]
+
+            for pair in combinations(match_closenesses.keys(), 2):
+                x = match_closenesses[pair[0]]
+                y = match_closenesses[pair[1]]
+                print("Kendall's tau {}".format(pair))
+                print(stats.kendalltau(x, y))
+
+
+        # get Spearman coefficient between closeness measures of all matches
+        print("Spearman:")
+        print(stats.spearmanr(all_match_centralities))
+
     print()
 
-    if True:
+    if False:
         print("------ DIFFERENCING NETWORKS ------")
         matches_to_compare = [984574, 984459]
         formations = [formations[match_id] for match_id in matches_to_compare]
