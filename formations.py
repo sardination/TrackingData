@@ -146,7 +146,8 @@ class Formation:
             G.add_node(p_id)
 
         # reflect clustering coefficient in node size
-        clustering_coeffs = onet.get_clustering_coefficients(pass_map.keys(), pass_map, weighted=True)
+        # clustering_coeffs = onet.get_clustering_coefficients(pass_map.keys(), pass_map, weighted=True)
+        clustering_coeffs = onet.get_cyclic_clustering_coefficients(pass_map.keys(), pass_map, weighted=True)
         max_clustering_coeff = max(clustering_coeffs.values()) ** 3 # ^ 3 to exaggerate effect
         max_node_size = 1200
         # node_sizes = [(clustering_coeffs[n] ** 3 / max_clustering_coeff) * max_node_size if clustering_coeffs.get(n) is not None else 0

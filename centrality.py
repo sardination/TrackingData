@@ -454,7 +454,7 @@ if __name__ == "__main__":
 
             print()
 
-            ns, ac = onet.get_eigenvalues(pass_map.keys(), pass_map)
+            ns, ac = onet.get_eigenvalues(pass_map.keys(), pass_map, goalie=goalkeeper_node)
             print("network strength: {}, algebraic connectivity: {}".format(ns, ac))
 
             print(formation.match_id)

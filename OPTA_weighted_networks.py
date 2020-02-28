@@ -116,6 +116,7 @@ def get_mapped_players(match_OPTA, team="home", exclude_subs=False, half=0):
     team_object = get_team(match_OPTA, team=team)
     return get_mapped_players_by_team(team_object, exclude_subs=exclude_subs, half=half)
 
+
 def get_mapped_players_by_team(team_object, exclude_subs=False, half=0):
     """
     Find which players have had a role in the game and should be mapped
@@ -146,7 +147,7 @@ def get_mapped_players_by_team(team_object, exclude_subs=False, half=0):
     return mapped_players
 
 
-def get_weighted_adjacency_matrix(mapped_players, pass_map):
+def get_weighted_adjacency_matrix(mapped_players, pass_map, goalie=None):
     """
     Return the weighted adjacency matrix for all `mapped_players` given
     the `pass_map` of information about which players have passed to
@@ -166,10 +167,19 @@ def get_weighted_adjacency_matrix(mapped_players, pass_map):
             if p_id in pass_map.keys() and r_id in pass_map[p_id].keys():
                 weighted_adjacency_matrix[p_index][r_index] = pass_map[p_id][r_id]['num_passes']
 
+    if goalie is not None:
+        try:
+            goalie_index = list(mapped_players).index(goalie)
+        except ValueError:
+            return weighted_adjacency_matrix
+
+        weighted_adjacency_matrix = np.delete(weighted_adjacency_matrix, goalie_index, 0)
+        weighted_adjacency_matrix = np.delete(weighted_adjacency_matrix, goalie_index, 1)
+
     return weighted_adjacency_matrix
 
 
-def get_eigenvalues(mapped_players, pass_map):
+def get_eigenvalues(mapped_players, pass_map, goalie=None):
     """
     Return highest eigenvalue of weighted adjacency matrix (quantifier of
     network strength) and second-lowest eigenvalue of Laplacian matrix
@@ -185,9 +195,11 @@ def get_eigenvalues(mapped_players, pass_map):
 
     total_passes = sum([pass_map[p_id][r_id]["num_passes"] for r_id in mapped_players for p_id in mapped_players])
 
-    weighted_adjacency_matrix = get_weighted_adjacency_matrix(mapped_players, pass_map) / total_passes
+    weighted_adjacency_matrix = get_weighted_adjacency_matrix(mapped_players, pass_map, goalie=goalie) / total_passes
     # print(weighted_adjacency_matrix)
     eigenvalues, _ = np.linalg.eig(weighted_adjacency_matrix)
+    # take real eigenvalues
+    eigenvalues = eigenvalues[np.isreal(eigenvalues)]
 
     network_strength = max(eigenvalues)
 
@@ -195,6 +207,8 @@ def get_eigenvalues(mapped_players, pass_map):
     adjacency_matrix = np.array(weighted_adjacency_matrix).astype('bool')
     laplacian_matrix = degree_matrix - adjacency_matrix
     lap_eigenvalues, _ = np.linalg.eig(laplacian_matrix)
+    # take real eigenvalues
+    lap_eigenvalues = lap_eigenvalues[np.isreal(lap_eigenvalues)]
 
     algebraic_connectivity = sorted(lap_eigenvalues)[1]
 
@@ -233,6 +247,46 @@ def get_clustering_coefficients(mapped_players, pass_map, weighted=True):
         coeffs = np.diagonal(np.linalg.matrix_power(
             (adjacency_matrix + adjacency_matrix.T), 3)
         ) / (2 * (degrees * (degrees - 1) - 2 * degrees_inout))
+
+    coeffs[coeffs == np.inf] = 0
+
+    return {p_id : coeff for p_id, coeff in zip(mapped_players, coeffs)}
+
+
+def get_cyclic_clustering_coefficients(mapped_players, pass_map, weighted=True):
+    """
+    Return the cyclic clustering coefficient of every mapped player as an array
+
+    Args:
+        mapped_players (list): list of player_ids for every mapped player
+        pass_map (dict of dicts): pass_map[u][v] is number of passes from u to v
+    Kwargs:
+        weighted (bool): whether to get the weighted clustering coefficients
+
+    Return:
+        clustering_coefficients (1D array)
+    """
+
+    freq_matrix = get_weighted_adjacency_matrix(mapped_players, pass_map)
+    adjacency_matrix = np.array(freq_matrix).astype('bool')
+    weighted_matrix = freq_matrix ** (1/3)
+
+    degrees_in = np.sum(adjacency_matrix, axis=0)
+    degrees_out = np.sum(adjacency_matrix, axis=1)
+    degrees = degrees_in + degrees_out
+    degrees_inout = adjacency_matrix * adjacency_matrix.T
+    np.fill_diagonal(degrees_inout, 0)
+    degrees_inout = np.sum(degrees_inout, axis=1)
+
+    coeffs = []
+    if weighted:
+        coeffs = np.diagonal(
+            np.linalg.matrix_power((weighted_matrix), 3)
+        ) / (degrees_in * degrees_out - degrees_inout)
+    else:
+        coeffs = np.diagonal(np.linalg.matrix_power(
+            (adjacency_matrix), 3)
+        ) / (degrees_in * degrees_out - degrees_inout)
 
     coeffs[coeffs == np.inf] = 0
 
