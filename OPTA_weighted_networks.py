@@ -625,7 +625,7 @@ def find_player_triplets(match_OPTA, team="home", exclude_subs=False, half=0):
 
     return find_player_triplets_by_team(team_object, exclude_subs=exclude_subs, half=half)
 
-def find_player_triplets_by_team(team_object, exclude_subs=False, half=0):
+def find_player_triplets_by_team(team_object, exclude_subs=False, half=0, exclude_edge=None):
     """
     Determine triplets of players that are strongly connected
 
@@ -635,6 +635,7 @@ def find_player_triplets_by_team(team_object, exclude_subs=False, half=0):
     Kwargs:
         team (string): "home" or "away" to specify which team from the match is being displayed
         exclude_subs (bool): whether to include subs in the triplets or not
+        exclude_edge (tuple): edge to break consecutive passes at
 
     Return:
         sorted_triples (list of tuples): list of triplets (members, weight) in ascending order of weight
@@ -658,7 +659,11 @@ def find_player_triplets_by_team(team_object, exclude_subs=False, half=0):
             consecutive_passers = []
             continue
 
-        consecutive_passers.append(player_id)
+        if exclude_edge is not None and len(consecutive_passers) > 0 and consecutive_passers[-1] in exclude_edge and \
+            player_id in exclude_edge:
+            consecutive_passers = []
+        else:
+            consecutive_passers.append(player_id)
 
         # if a new passer has been added, pushing the unique players above a triplet, then remove the earliest
         #   passers until a triplet is formed from the latest passes
@@ -678,6 +683,48 @@ def find_player_triplets_by_team(team_object, exclude_subs=False, half=0):
     max_popularity = float(sorted_triplets[0][1])
 
     return sorted_triplets
+
+
+def find_triplet_strengths(team_object, exclude_subs=False, half=0, transfer_map=None):
+    """
+    Break individual connections and find the top triplets for each possibly broken connection
+    Check how often the triplet is in the top five
+    """
+    mapped_players = get_mapped_players_by_team(team_object, exclude_subs=exclude_subs, half=half)
+
+    top_5_count = {}
+
+    all_pairs = list(combinations([p_id for p_id in mapped_players], 2))
+    num_pairs = len(all_pairs)
+    for pair in all_pairs:
+        sorted_triplets = find_player_triplets_by_team(team_object, exclude_subs=exclude_subs, half=half, exclude_edge=pair)
+
+        if transfer_map is not None:
+            role_sorted_triplets = {}
+            for triplet, count in sorted_triplets:
+                new_triplet = []
+                for p in triplet:
+                    new_triplet.append(transfer_map[p])
+                new_triplet = tuple(sorted(new_triplet))
+                try:
+                    role_sorted_triplets[new_triplet] += count
+                except KeyError:
+                    role_sorted_triplets[new_triplet] = count
+            sorted_triplets = sorted(role_sorted_triplets.items(), key=lambda t:t[1])
+
+        for triplet, _ in sorted_triplets[-5:]:
+            try:
+                top_5_count[triplet] += 1
+            except KeyError:
+                top_5_count[triplet] = 1
+
+    strength_ratings = {}
+    for triplet, count in top_5_count.items():
+        strength_ratings[triplet] = float(count) / float(num_pairs)
+
+    print(sorted(strength_ratings.items(), key=lambda t: -t[1]))
+
+    return strength_ratings
 
 
 def plot_passes_vs_dist(match_OPTA, team="home", exclude_subs=False):

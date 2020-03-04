@@ -401,5 +401,22 @@ if __name__ == "__main__":
                 pass_maps[1]
             )
 
+    print()
 
+    if True:
+        print("------ TRIPLET STRENGTHS ------")
+        matches_to_compare = [984574, 984459]
+        for match_id in matches_to_compare:
+            match_OPTA = matches[match_id]
+            home_or_away_string = home_or_away[match_id]
+            team_object = team_objects[match_id]
+            team_pass_map = onet.get_all_pass_destinations(
+                match_OPTA,
+                team=home_or_away_string,
+                exclude_subs=False,
+                half=0
+            )
+            transfer_map, _ = onet.convert_pass_map_to_roles(team_object, team_pass_map)
+
+            strengths = onet.find_triplet_strengths(team_object, exclude_subs=False, half=0, transfer_map=transfer_map)
 
