@@ -455,7 +455,9 @@ if __name__ == "__main__":
             print()
 
             ns, ac = onet.get_eigenvalues(pass_map.keys(), pass_map, goalie=goalkeeper_node)
-            print("network strength: {}, algebraic connectivity: {}".format(ns, ac))
+            print("{}: network strength: {}, algebraic connectivity: {}".format(team_object.team_id, ns, ac))
+            opp_ns, opp_ac = onet.get_eigenvalues(opposing_pass_map.keys(), opposing_pass_map, goalie=opp_goalkeeper_node)
+            print("{}: network strength: {}, algebraic connectivity: {}".format(opposing_team_object.team_id, opp_ns, opp_ac))
 
             print(formation.match_id)
 
@@ -465,16 +467,16 @@ if __name__ == "__main__":
             if role_grouped:
                 formation.get_formation_graph_by_role(
                     original_pass_map,
-                    show_triplets=period
+                    # show_triplets=period
                     # highlight_edges=highlight_edges
                 )
-                # opposing_formation.get_formation_graph_by_role(original_opposing_pass_map)
+                opposing_formation.get_formation_graph_by_role(original_opposing_pass_map)
             else:
                 formation.get_formation_graph(
                     pass_map=pass_map,
-                    show_triplets=period
+                    # show_triplets=period
                     # highlight_edges=highlight_edges
                 )
-                # opposing_formation.get_formation_graph(pass_map=opposing_pass_map)
+                opposing_formation.get_formation_graph(pass_map=opposing_pass_map)
     ###
 

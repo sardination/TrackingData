@@ -377,7 +377,7 @@ if __name__ == "__main__":
 
     print()
 
-    if False:
+    if True:
         print("------ DIFFERENCING NETWORKS ------")
         matches_to_compare = [984574, 984459]
         formations = [formations[match_id] for match_id in matches_to_compare]

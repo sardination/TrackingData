@@ -53,6 +53,8 @@ def plot_closeness_vs_betweenness(match_OPTA, team_id, match_id=None):
         ax.set_xlabel("closeness")
         ax.set_ylabel("betweenness")
         ax.set_title("Match {} Team {}".format(match_id, team_id))
+        ax.set_xlim([1, 3])
+        ax.set_ylim([0, 0.8])
 
         ax.scatter(x, y)
         for i, p_id in enumerate(players):
@@ -130,6 +132,13 @@ def plot_cross_match_centrality(matches, team_id, metric="closeness"):
         metric
     ))
     ax.set_title("Team {}".format(team_id))
+
+    if metric == "closeness":
+        ax.set_xlim([1, 3])
+        ax.set_ylim([1, 3])
+    elif metric == "betweenness":
+        ax.set_xlim([0, 0.8])
+        ax.set_ylim([0, 0.8])
 
     # draw center line
     line_x_vals = [

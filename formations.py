@@ -174,7 +174,8 @@ class Formation:
             G,
             player_locations,
             node_size=node_sizes,
-            node_color='blue'
+            node_color='blue',
+            alpha=0.8
         )
         nx.draw_networkx_labels(
             G,
@@ -331,12 +332,15 @@ class Formation:
             node_sizes[node] = this_node_sizes[node] - other_node_sizes[node]
             node_locations[node] = this_node_locations[node]
 
-        node_colors = {node: 'red' if size < 0 else 'green' for node, size in node_sizes.items()}
+        node_colors = {node: 'orange' if size < 0 else 'blue' for node, size in node_sizes.items()}
         node_sizes = {node: abs(size) for node, size in node_sizes.items()}
 
         # get edge difference colors and sizes
         edge_widths = {source: {dest: 0 for dest in difference_graph.nodes()} for source in difference_graph.nodes()}
         edge_colors = {source: {dest: None for dest in difference_graph.nodes()} for source in difference_graph.nodes()}
+
+        _, this_role_pass_map = onet.convert_pass_map_to_roles(self.team_object, this_pass_map)
+        _, other_role_pass_map = onet.convert_pass_map_to_roles(other_formation.team_object, other_pass_map)
 
         for source in difference_graph.nodes():
             for dest in difference_graph.nodes():
@@ -347,8 +351,13 @@ class Formation:
                 if (source, dest) in other_formation_graph.edges():
                     other_width = other_formation_graph[source][dest]['width']
                 diff_width = this_width - other_width
-                edge_widths[source][dest] = abs(diff_width)
-                edge_colors[source][dest] = 'red' if diff_width < 0 else 'green'
+                # edge_widths[source][dest] = abs(diff_width)
+                if diff_width < 0:
+                    edge_colors[source][dest] = 'orange'
+                    edge_widths[source][dest] = other_role_pass_map[source][dest]["avg_pass_dist"] * 500
+                else:
+                    edge_colors[source][dest] = 'blue'
+                    edge_widths[source][dest] = this_role_pass_map[source][dest]["avg_pass_dist"] * 500
 
                 difference_graph.add_edge(source, dest, weight=abs(diff_width))
 
@@ -356,7 +365,8 @@ class Formation:
             difference_graph,
             node_locations,
             node_size=[node_sizes[node] for node in difference_graph.nodes()],
-            node_color=[node_colors[node] for node in difference_graph.nodes()]
+            node_color=[node_colors[node] for node in difference_graph.nodes()],
+            alpha=0.8
         )
         nx.draw_networkx_labels(
             difference_graph,
