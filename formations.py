@@ -407,6 +407,64 @@ def copy_formation(formation):
     return new_formation
 
 
+def average_formations(formation_list):
+    """
+    Can only be done by role, not individual players
+    """
+
+    team_id = set([f.team_id for f in formation_list])
+    if len(team_id) != 1:
+        raise("Trying to average networks of different teams")
+    else:
+        team_id = list(team_id)[0]
+
+    goalkeeper = set([f.goalkeeper for f in formation_list])
+    if len(goalkeeper) != 1:
+        goalkeeper = None
+    else:
+        goalkeeper = list(goalkeeper)[0]
+
+    # player_locations = {}
+    player_locations = {role_id: (0, 0) for role_id in range(1, 12)}
+    # player_counts = {}
+    player_counts = {role_id: 0 for role_id in range(1, 12)}
+    for formation in formation_list:
+        player_role_mapping = onet.get_player_role_mapping(formation.team_object)
+        for p_id, (x, y) in formation.player_locations.items():
+            role_id = player_role_mapping[p_id]
+            # current_sum = player_locations.get(p_id)
+            current_sum = player_locations.get(role_id)
+            # if current_sum is None:
+            #     current_sum = (0, 0)
+            #     # player_counts[p_id] = 1
+            #     player_counts[role_id] = 1
+            # player_locations[p_id] = (current_sum[0] + x, current_sum[1] + y)
+            player_locations[role_id] = (current_sum[0] + x, current_sum[1] + y)
+            player_counts[role_id] += 1
+
+    # for p_id in player_locations.keys():
+    #     player_locations[p_id] /= player_counts[p_id]
+    for role_id in range(1, 12):
+        total_location = player_locations[role_id]
+        total_count = player_counts[role_id]
+        if total_count > 0:
+            player_locations[role_id] = (total_location[0] / total_count, total_location[1] / total_count)
+        else:
+            player_locations[role_id] = (0, 0)
+
+    average_formation = Formation(
+        None,
+        team_id,
+        None,
+        None,
+        None,
+        player_locations=player_locations
+    )
+    average_formation.goalkeeper = goalkeeper
+
+    return average_formation
+
+
 def read_formations_from_csv(csv_filename, team_id):
     """
     Read CSV file with formation information and return list of Formation objects

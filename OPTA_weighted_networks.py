@@ -427,6 +427,31 @@ def get_all_pass_destinations(match_OPTA, team="home", exclude_subs=False, half=
     return pass_map
 
 
+def get_player_role_mapping(team_object):
+    """
+    Only gives the role transfer map without the converted pass map
+    """
+    player_positions = team_object.get_player_positions()
+
+    # assign role IDs to the appropriate substitutes
+    substition_events = [e for e in team_object.events if e.is_substitution]
+    on_sub = None
+    off_sub = None
+    for e in substition_events:
+        if e.sub_direction == "on":
+            on_sub = e.player_id
+        elif e.sub_direction == "off":
+            off_sub = e.player_id
+
+        if on_sub is not None and off_sub is not None:
+            role_id = player_positions[off_sub]
+            player_positions[on_sub] = role_id
+
+            on_sub = None
+            off_sub = None
+
+    return player_positions
+
 def convert_pass_map_to_roles(team_object, pass_map):
     """
     Convert pass map to use role IDs rather than player IDs. Combines substitutes into one role ID.
