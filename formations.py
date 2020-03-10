@@ -283,7 +283,7 @@ class Formation:
         )
 
 
-    def get_formation_difference_graph(self, this_pass_map, other_formation, other_pass_map):
+    def get_formation_difference_graph(self, this_pass_map, other_formation, other_pass_map, self_role=False, other_role=False):
         """
         Creates a difference graph between this formation and `other_formation`.
         This really only makes sense for role graphs, as players change from match
@@ -297,11 +297,21 @@ class Formation:
         node will be green, and red if otherwise. The size will represent the size of the
         difference.
 
+        Kwargs:
+            self_role/other_role: whether the formation player locations are already given by role id rather than player id
+
         TODO: does direction of passes matter?
         """
 
-        this_formation_graph = self.get_formation_graph_by_role(this_pass_map)
-        other_formation_graph = other_formation.get_formation_graph_by_role(other_pass_map)
+        if not self_role:
+            this_formation_graph = self.get_formation_graph_by_role(this_pass_map)
+        else:
+            this_formation_graph = self.get_formation_graph(pass_map=this_pass_map)
+
+        if not other_role:
+            other_formation_graph = other_formation.get_formation_graph_by_role(other_pass_map)
+        else:
+            other_formation_graph = other_formation.get_formation_graph(pass_map=other_pass_map)
 
         difference_graph = nx.Graph()
 
@@ -339,8 +349,15 @@ class Formation:
         edge_widths = {source: {dest: 0 for dest in difference_graph.nodes()} for source in difference_graph.nodes()}
         edge_colors = {source: {dest: None for dest in difference_graph.nodes()} for source in difference_graph.nodes()}
 
-        _, this_role_pass_map = onet.convert_pass_map_to_roles(self.team_object, this_pass_map)
-        _, other_role_pass_map = onet.convert_pass_map_to_roles(other_formation.team_object, other_pass_map)
+        if not self_role:
+            _, this_role_pass_map = onet.convert_pass_map_to_roles(self.team_object, this_pass_map)
+        else:
+            this_role_pass_map = this_pass_map
+
+        if not other_role:
+            _, other_role_pass_map = onet.convert_pass_map_to_roles(other_formation.team_object, other_pass_map)
+        else:
+            other_role_pass_map = other_pass_map
 
         for source in difference_graph.nodes():
             for dest in difference_graph.nodes():

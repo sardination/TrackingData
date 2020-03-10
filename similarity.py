@@ -310,7 +310,7 @@ if __name__ == "__main__":
 
     print()
 
-    if True:
+    if False:
         print("------ CENTRALITY (CLOSENESS) ORDERING ------")
         all_match_centralities = []
         all_match_index = 0
@@ -379,31 +379,48 @@ if __name__ == "__main__":
 
     if True:
         print("------ DIFFERENCING NETWORKS ------")
-        matches_to_compare = [984574, 984459]
-        formations = [formations[match_id] for match_id in matches_to_compare]
-        match_OPTAs = [matches[match_id] for match_id in matches_to_compare]
-        home_or_away_strings = [home_or_away[match_id] for match_id in matches_to_compare]
+        # matches_to_compare = [984574, 984459]
+        # formations = [formations[match_id] for match_id in matches_to_compare]
+        # match_OPTAs = [matches[match_id] for match_id in matches_to_compare]
+        # home_or_away_strings = [home_or_away[match_id] for match_id in matches_to_compare]
 
-        for half in [0, 1, 2]:
-            pass_maps = [
-                onet.get_all_pass_destinations(
-                    match_OPTA,
-                    team=home_or_away_string,
-                    exclude_subs=False,
-                    half=half
-                )
-                for match_OPTA, home_or_away_string in zip(match_OPTAs, home_or_away_strings)
-            ]
+        # for half in [0, 1, 2]:
+        #     pass_maps = [
+        #         onet.get_all_pass_destinations(
+        #             match_OPTA,
+        #             team=home_or_away_string,
+        #             exclude_subs=False,
+        #             half=half
+        #         )
+        #         for match_OPTA, home_or_away_string in zip(match_OPTAs, home_or_away_strings)
+        #     ]
 
-            formations[0].get_formation_difference_graph(
-                pass_maps[0],
-                formations[1],
-                pass_maps[1]
+        #     formations[0].get_formation_difference_graph(
+        #         pass_maps[0],
+        #         formations[1],
+        #         pass_maps[1]
+        #     )
+
+        match_id = 984517
+        pass_maps = [
+            onet.get_all_pass_destinations(
+                matches[match_id],
+                team=home_or_away[match_id],
+                exclude_subs=False,
+                half=half
             )
+            for half in [1,2]
+        ]
+        formation = formations[match_id]
+        formation.get_formation_difference_graph(
+            pass_maps[0],
+            formation,
+            pass_maps[1]
+        )
 
     print()
 
-    if True:
+    if False:
         print("------ TRIPLET STRENGTHS ------")
         matches_to_compare = [984574, 984459]
         for match_id in matches_to_compare:

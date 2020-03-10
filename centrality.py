@@ -162,6 +162,18 @@ def current_flow_closeness_directed(graph, start_node=None):
     return closenesses
 
 
+def get_directed_graph_without_times(pass_map):
+    mapped_players = pass_map.keys()
+    graph = nx.DiGraph()
+    for p_id in mapped_players:
+        for r_id in mapped_players:
+            if pass_map[p_id][r_id]["num_passes"] == 0:
+                continue
+            graph.add_edge(p_id, r_id, weight=pass_map[p_id][r_id]["num_passes"])
+
+    return graph
+
+
 def get_directed_graphs(pass_map, player_times, team_object, role_grouped=False, period=0):
     graphs = {}
 
@@ -270,7 +282,8 @@ if __name__ == "__main__":
     # opposing_formations = []
 
     # all_copenhagen_match_ids = [984463]
-    all_copenhagen_match_ids = [984574, 984459]
+    # all_copenhagen_match_ids = [984574, 984459]
+    all_copenhagen_match_ids = [984517]
 
     # for formation in copenhagen_formations:
     #     match_id = formation.match_id
@@ -470,13 +483,13 @@ if __name__ == "__main__":
                     # show_triplets=period
                     # highlight_edges=highlight_edges
                 )
-                opposing_formation.get_formation_graph_by_role(original_opposing_pass_map)
+                # opposing_formation.get_formation_graph_by_role(original_opposing_pass_map)
             else:
                 formation.get_formation_graph(
                     pass_map=pass_map,
                     # show_triplets=period
                     # highlight_edges=highlight_edges
                 )
-                opposing_formation.get_formation_graph(pass_map=opposing_pass_map)
+                # opposing_formation.get_formation_graph(pass_map=opposing_pass_map)
     ###
 
