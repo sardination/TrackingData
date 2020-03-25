@@ -1,3 +1,4 @@
+import centrality
 import change_patterns
 import formations
 import OPTA as opta
@@ -195,81 +196,106 @@ for p_id in range(1, 12):
             }
 
 average_formation = formations.average_formations(copenhagen_formations.values())
-for half in range(0, 3):
-    print("--- AVERAGE FORMATION FOR PERIOD {} ---".format(half))
-    average_formation.get_formation_graph(pass_map=average_role_pass_map[half])
-
-print()
-print("--- DIFFERENCING NETWORKS ---")
-match_id = 984517
-match_pass_maps = [
-    onet.get_all_pass_destinations(
-        matches[match_id],
-        team=copenhagen_home_away[match_id],
-        exclude_subs=False,
-        half=half
-    )
-    for half in [0,1,2]
-]
-formation = copenhagen_formations[match_id]
-for half in [0, 1, 2]:
-    print("--- DIFFERENCE FOR PERIOD {} ---".format(half))
-    formation.get_formation_difference_graph(
-        match_pass_maps[half],
-        average_formation,
-        average_role_pass_map[half],
-        other_role=True
-    )
-
-average_formation.get_formation_difference_graph(
-    average_role_pass_map[1],
-    average_formation,
-    average_role_pass_map[2],
-    self_role=True,
-    other_role=True
-)
 
 for half in range(0, 3):
-    ns, ac = onet.get_eigenvalues(average_role_pass_map[half].keys(), average_role_pass_map[half], goalie=1)
-    print("{} half {}: network strength: {}, algebraic connectivity: {}".format(copenhagen_team_id, half, ns, ac))
-
-for half in range(0, 3):
-    roles = set(average_role_pass_map[half].keys())
-    roles.add(0)
-    weighted_adjacency_matrix = np.array(onet.get_weighted_adjacency_matrix(
-        sorted(list(roles)),
-        average_role_pass_map[half]
-    ))
-
-    # TODO: heatmap weights by role vs role
-    fig, ax = plt.subplots()
-    plt.imshow(
-        weighted_adjacency_matrix,
-        cmap='hot',
-        interpolation='nearest',
-        norm=mpl_colors.Normalize(vmin=0, vmax=30)
+    # print("--- AVERAGE FORMATION FOR PERIOD {} ---".format(half))
+    average_graph = centrality.get_directed_graph_without_times(average_role_pass_map[half])
+    edge_betweenness = centrality.current_flow_edge_betweenness_directed(
+        average_graph,
+        start_node=1
     )
-    plt.show()
-
-
-for half in range(0, 3):
-    change_patterns.plot_closeness_vs_betweenness_from_pass_map(
-        average_role_pass_map[half],
-        title="Average Period {}".format(half)
+    print("EDGE BETWEENNESS (TOP 10) PD {}".format(half))
+    print("Team {}".format(team_object.team_id))
+    top_10_edges = list(sorted(edge_betweenness.items(), key=lambda t:-t[1]))[:10]
+    for key, value in top_10_edges:
+        print("{} -- {} --> {}: {}".format(key[0], average_role_pass_map[half][key[0]][key[1]]['num_passes'], key[1], value))
+    average_formation.get_formation_graph(
+        pass_map=average_role_pass_map[half],
+        highlight_edges=top_10_edges
     )
+    # average_formation.get_formation_graph(pass_map=average_role_pass_map[half])
 
-change_patterns.plot_cross_match_centrality_by_pass_maps(
-    {
-        "Average Half 1": average_role_pass_map[1],
-        "Average Half 2": average_role_pass_map[2]
-    }
-)
+# print()
+# print("--- DIFFERENCING NETWORKS ---")
+# match_id = 984517
+# match_pass_maps = [
+#     onet.get_all_pass_destinations(
+#         matches[match_id],
+#         team=copenhagen_home_away[match_id],
+#         exclude_subs=False,
+#         half=half
+#     )
+#     for half in [0,1,2]
+# ]
+# formation = copenhagen_formations[match_id]
+# for half in [0, 1, 2]:
+#     print("--- DIFFERENCE FOR PERIOD {} ---".format(half))
+#     formation.get_formation_difference_graph(
+#         match_pass_maps[half],
+#         average_formation,
+#         average_role_pass_map[half],
+#         other_role=True
+#     )
 
-change_patterns.plot_cross_match_centrality_by_pass_maps(
-    {
-        "Average Half 1": average_role_pass_map[1],
-        "Average Half 2": average_role_pass_map[2]
-    },
-    metric="betweenness"
-)
+# average_formation.get_formation_difference_graph(
+#     average_role_pass_map[1],
+#     average_formation,
+#     average_role_pass_map[2],
+#     self_role=True,
+#     other_role=True
+# )
+
+# for half in range(0, 3):
+#     ns, ac = onet.get_eigenvalues(average_role_pass_map[half].keys(), average_role_pass_map[half], goalie=1)
+#     print("{} half {}: network strength: {}, algebraic connectivity: {}".format(copenhagen_team_id, half, ns, ac))
+
+# for half in range(0, 3):
+#     roles = set(average_role_pass_map[half].keys())
+#     roles.add(0)
+#     weighted_adjacency_matrix = np.array(onet.get_weighted_adjacency_matrix(
+#         sorted(list(roles)),
+#         average_role_pass_map[half]
+#     ))
+
+#     # TODO: heatmap weights by role vs role
+#     fig, ax = plt.subplots()
+#     plt.imshow(
+#         weighted_adjacency_matrix,
+#         cmap='hot',
+#         interpolation='nearest',
+#         norm=mpl_colors.Normalize(vmin=0, vmax=30)
+#     )
+#     plt.show()
+
+
+# for half in range(0, 3):
+#     change_patterns.plot_closeness_vs_betweenness_from_pass_map(
+#         average_role_pass_map[half],
+#         title="Average Period {}".format(half)
+#     )
+
+# change_patterns.plot_cross_match_centrality_by_pass_maps(
+#     {
+#         "Average Half 1": average_role_pass_map[1],
+#         "Average Half 2": average_role_pass_map[2]
+#     }
+# )
+
+# change_patterns.plot_cross_match_centrality_by_pass_maps(
+#     {
+#         "Average Half 1": average_role_pass_map[1],
+#         "Average Half 2": average_role_pass_map[2]
+#     },
+#     metric="betweenness"
+# )
+
+# average_pageranks = onet.get_average_pagerank(matches, copenhagen_home_away)
+
+# match_id = 984517
+# change_patterns.plot_match_to_average_pagerank(
+#     average_pageranks,
+#     matches[match_id],
+#     team=copenhagen_home_away[match_id],
+#     match_id=match_id
+# )
 

@@ -283,7 +283,7 @@ if __name__ == "__main__":
 
     # all_copenhagen_match_ids = [984463]
     # all_copenhagen_match_ids = [984574, 984459]
-    all_copenhagen_match_ids = [984517]
+    all_copenhagen_match_ids = [984517, 984528]
 
     # for formation in copenhagen_formations:
     #     match_id = formation.match_id
@@ -319,7 +319,7 @@ if __name__ == "__main__":
 
     ###
         original_formation = formation
-        for period in [0,1,2]:
+        for period in [0, 1, 2]:
             formation = formations.copy_formation(original_formation)
             pass_map = onet.get_all_pass_destinations(match_OPTA, team=home_or_away, exclude_subs=False, half=period)
 
@@ -415,19 +415,19 @@ if __name__ == "__main__":
                 graphs['scaled_graph'],
                 start_node=goalkeeper_node
             )
-            # opp_edge_betweenness = current_flow_edge_betweenness_directed(
-            #     opposing_graphs['scaled_graph'],
-            #     start_node=opp_goalkeeper_node
-            # )
-            # print("EDGE BETWEENNESS (TOP 10)")
-            # print("Team {}".format(team_object.team_id))
-            # for key, value in list(sorted(edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
-            #     print("{} -- {} --> {}: {}".format(key[0], pass_map[key[0]][key[1]]['num_passes'], key[1], value))
-            # print("Team {}".format(opposing_team_object.team_id))
-            # for key, value in list(sorted(opp_edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
-            #     print("{} -- {} --> {}: {}".format(key[0], opposing_pass_map[key[0]][key[1]]['num_passes'], key[1], value))
+            opp_edge_betweenness = current_flow_edge_betweenness_directed(
+                opposing_graphs['scaled_graph'],
+                start_node=opp_goalkeeper_node
+            )
+            print("EDGE BETWEENNESS (TOP 10)")
+            print("Team {}".format(team_object.team_id))
+            for key, value in list(sorted(edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
+                print("{} -- {} --> {}: {}".format(key[0], pass_map[key[0]][key[1]]['num_passes'], key[1], value))
+            print("Team {}".format(opposing_team_object.team_id))
+            for key, value in list(sorted(opp_edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
+                print("{} -- {} --> {}: {}".format(key[0], opposing_pass_map[key[0]][key[1]]['num_passes'], key[1], value))
 
-            # print()
+            print()
 
             closenesses = current_flow_closeness_directed(
                 graphs['scaled_graph'],
@@ -480,7 +480,7 @@ if __name__ == "__main__":
             if role_grouped:
                 formation.get_formation_graph_by_role(
                     original_pass_map,
-                    # show_triplets=period
+                    show_triplets=period
                     # highlight_edges=highlight_edges
                 )
                 # opposing_formation.get_formation_graph_by_role(original_opposing_pass_map)
@@ -491,5 +491,8 @@ if __name__ == "__main__":
                     # highlight_edges=highlight_edges
                 )
                 # opposing_formation.get_formation_graph(pass_map=opposing_pass_map)
+
+            triplet_list = onet.find_player_triplets_by_team(formation.team_object, half=period)
+            print(triplet_list[-5:])
     ###
 

@@ -7,6 +7,39 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def plot_match_to_average_pagerank(average_pageranks, match, team="home", match_id=None):
+    match_pageranks = onet.get_pagerank(
+        match,
+        team=team,
+        role_grouped=True
+    )
+
+    players = average_pageranks.keys()
+    x = [average_pageranks[p] for p in players]
+    y = [match_pageranks[p] for p in players]
+
+
+    fig, ax = plt.subplots()
+    ax.set_xlabel("Average Match PageRank")
+    ax.set_ylabel("Match {} PageRank".format(match_id))
+    ax.set_title("Match {} vs Average PageRank".format(match_id))
+    ax.set_xlim([0.085, 0.098])
+    ax.set_ylim([0.085, 0.098])
+
+    # draw center line
+    line_x_vals = [
+        min(set(x).union(set(y))),
+        max(set(x).union(set(y)))
+    ]
+    line_y_vals = line_x_vals
+    plt.plot(line_x_vals, line_y_vals, '--', color='r')
+
+    ax.scatter(x, y)
+    for i, p_id in enumerate(players):
+        ax.annotate(p_id, (x[i], y[i]))
+
+    plt.show()
+
 def plot_closeness_vs_betweenness_from_pass_map(pass_map, title="Average Match"):
     # graphs = centrality.get_directed_graphs(
     #     pass_map,
@@ -182,7 +215,8 @@ def plot_cross_match_centrality(matches, team_id, metric="closeness"):
 
     allowed_metrics = {
         "closeness": centrality.current_flow_closeness_directed,
-        "betweenness": centrality.current_flow_betweenness_directed
+        "betweenness": centrality.current_flow_betweenness_directed,
+        "pagerank": onet.get_pagerank
     }
     metric_function = allowed_metrics.get(metric)
     if metric_function is None:
@@ -217,10 +251,17 @@ def plot_cross_match_centrality(matches, team_id, metric="closeness"):
         )
         players = players.union(set(graphs['scaled_graph'].nodes()))
 
-        metric_results[match_id] = metric_function(
-            graphs['scaled_graph'],
-            start_node=1
-        )
+        if metric != "pagerank":
+            metric_results[match_id] = metric_function(
+                graphs['scaled_graph'],
+                start_node=1
+            )
+        else:
+            metric_results[match_id] = metric_function(
+                match_OPTA,
+                team=home_or_away,
+                role_grouped=True
+            )
 
     players = list(players)
 
@@ -244,6 +285,9 @@ def plot_cross_match_centrality(matches, team_id, metric="closeness"):
     elif metric == "betweenness":
         ax.set_xlim([0, 0.8])
         ax.set_ylim([0, 0.8])
+    elif metric == "pagerank":
+        ax.set_xlim([0.085, 0.098])
+        ax.set_ylim([0.085, 0.098])
 
     # draw center line
     line_x_vals = [
@@ -274,7 +318,8 @@ def plot_cross_half_centrality(match, team_id, metric="closeness"):
 
     allowed_metrics = {
         "closeness": centrality.current_flow_closeness_directed,
-        "betweenness": centrality.current_flow_betweenness_directed
+        "betweenness": centrality.current_flow_betweenness_directed,
+        "pagerank": onet.get_pagerank
     }
     metric_function = allowed_metrics.get(metric)
     if metric_function is None:
@@ -303,10 +348,19 @@ def plot_cross_half_centrality(match, team_id, metric="closeness"):
         )
         players = players.union(set(graphs['scaled_graph'].nodes()))
 
-        metric_results[half] = metric_function(
-            graphs['scaled_graph'],
-            start_node=1
-        )
+        if metric != "pagerank":
+            metric_results[half] = metric_function(
+                graphs['scaled_graph'],
+                start_node=1
+            )
+        else:
+            metric_results[half] = metric_function(
+                match_OPTA,
+                team=home_or_away,
+                half=half,
+                role_grouped=True
+            )
+            print(metric_results[half])
 
     players = list(players)
 
@@ -324,6 +378,9 @@ def plot_cross_half_centrality(match, team_id, metric="closeness"):
     elif metric == "betweenness":
         ax.set_xlim([0, 0.8])
         ax.set_ylim([0, 0.8])
+    elif metric == "pagerank":
+        ax.set_xlim([0.085, 0.098])
+        ax.set_ylim([0.085, 0.098])
 
     # draw center line
     line_x_vals = [
@@ -401,8 +458,8 @@ if __name__ == "__main__":
     ]
     copenhagen_team_id = 569
 
-    # all_copenhagen_match_ids = [984574, 984459]
-    all_copenhagen_match_ids = [984517]
+    all_copenhagen_match_ids = [984574, 984459]
+    # all_copenhagen_match_ids = [984528]
 
     matches = {}
 
@@ -412,20 +469,21 @@ if __name__ == "__main__":
         match_OPTA = opta.read_OPTA_f24(fpath, fname, match_OPTA)
         matches[match_id] = match_OPTA
 
-    for match_id in all_copenhagen_match_ids:
-        for half in [0,1,2]:
-            adjacency_heatmap(matches[match_id], copenhagen_team_id, half=half)
-    for match_id in all_copenhagen_match_ids:
-        for half in [0,1,2]:
-            plot_closeness_vs_betweenness(matches[match_id], copenhagen_team_id, match_id=match_id, half=half)
-    plot_cross_half_centrality(list(matches.values())[0], copenhagen_team_id)
-    plot_cross_half_centrality(list(matches.values())[0], copenhagen_team_id, metric="betweenness")
-
     # for match_id in all_copenhagen_match_ids:
-    #     plot_closeness_vs_betweenness(matches[match_id], copenhagen_team_id, match_id = match_id)
+    #     for half in [0,1,2]:
+    #         adjacency_heatmap(matches[match_id], copenhagen_team_id, half=half)
     # for match_id in all_copenhagen_match_ids:
-    #     adjacency_heatmap(matches[match_id], copenhagen_team_id)
+    #     for half in [0,1,2]:
+    #         plot_closeness_vs_betweenness(matches[match_id], copenhagen_team_id, match_id=match_id, half=half)
+    # plot_cross_half_centrality(list(matches.values())[0], copenhagen_team_id)
+    # plot_cross_half_centrality(list(matches.values())[0], copenhagen_team_id, metric="betweenness")
+    # plot_cross_half_centrality(list(matches.values())[0], copenhagen_team_id, metric="pagerank")
 
-    # plot_cross_match_centrality(matches, copenhagen_team_id)
-    # plot_cross_match_centrality(matches, copenhagen_team_id, metric="betweenness")
+    for match_id in all_copenhagen_match_ids:
+        plot_closeness_vs_betweenness(matches[match_id], copenhagen_team_id, match_id = match_id)
+    for match_id in all_copenhagen_match_ids:
+        adjacency_heatmap(matches[match_id], copenhagen_team_id)
 
+    plot_cross_match_centrality(matches, copenhagen_team_id)
+    plot_cross_match_centrality(matches, copenhagen_team_id, metric="betweenness")
+    plot_cross_match_centrality(matches, copenhagen_team_id, metric="pagerank")

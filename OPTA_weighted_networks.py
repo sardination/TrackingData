@@ -293,7 +293,68 @@ def get_cyclic_clustering_coefficients(mapped_players, pass_map, weighted=True):
     return {p_id : coeff for p_id, coeff in zip(mapped_players, coeffs)}
 
 
-def get_pagerank(match_OPTA, team="home"):
+def get_average_pagerank(matches, home_or_away):
+    relevant_event_ids = [
+        1,  # pass
+        2,  # offside pass
+        3,  # take on
+        13, # shot missed
+        14, # shot hit post
+        15, # shot saved
+        16, # shot made goal
+    ]
+
+    successful_pass_count = {} # number of successful passes per player id referenced
+    total_events_count = {} # number of total relevant events per player id referenced
+
+    for match_id, match in matches.items():
+        team = home_or_away[match_id]
+        team_object = get_team(match, team=team)
+        events_raw = [e for e in team_object.events if e.type_id in relevant_event_ids]
+
+        # player-to-player pass information
+        pass_map = get_all_pass_destinations(match, team=team, exclude_subs=False)
+        _, pass_map = convert_pass_map_to_roles(team_object, pass_map)
+
+        # count how many successful passes and total events there are for each player
+        for event in events_raw:
+            player_id = event.player_id
+
+            events_so_far = total_events_count.get(player_id)
+            if events_so_far is None:
+                total_events_count[player_id] = 1
+                successful_pass_count[player_id] = 0
+            else:
+                total_events_count[player_id] += 1
+
+            if event.is_pass:
+                successful_pass_count[player_id] += 1
+
+    # probability heuristic for completed passes vs total play continuation events
+    p_values = {
+        player_id: float(successful_pass_count[player_id]) / float(total_events_count[player_id])
+        for player_id in total_events_count.keys()
+    }
+
+    pagerank_graph = nx.DiGraph()
+    for p_id, p_pass_map in pass_map.items():
+        for r_id, pass_info in p_pass_map.items():
+            n_passes = pass_info["num_passes"]
+            pagerank_graph.add_edge(p_id, r_id, weight=n_passes)
+
+    # alphas = [p_values[player_id] for player_id in pagerank_graph.nodes()]
+    alpha = 1 - sum([v for _, v in p_values.items()]) / len(p_values.keys())
+
+    pageranks = nx.pagerank_numpy(
+        pagerank_graph,
+        alpha=alpha,
+        weight='weight'
+    )
+
+    return pageranks
+
+
+def get_pagerank(match_OPTA, team="home", half=0, role_grouped=False):
     """
     Return pagerank vector of all players involved in match play
 
@@ -318,13 +379,15 @@ def get_pagerank(match_OPTA, team="home"):
     ]
 
     team_object = get_team(match_OPTA, team=team)
-    events_raw = [e for e in team_object.events if e.type_id in relevant_event_ids]
+    events_raw = [e for e in team_object.events if e.type_id in relevant_event_ids and (half not in [1,2] or half == e.period_id)]
 
     successful_pass_count = {} # number of successful passes per player id referenced
     total_events_count = {} # number of total relevant events per player id referenced
 
     # player-to-player pass information
     pass_map = get_all_pass_destinations(match_OPTA, team=team, exclude_subs=False)
+    if role_grouped:
+        _, pass_map = convert_pass_map_to_roles(team_object, pass_map)
 
     # count how many successful passes and total events there are for each player
     for event in events_raw:
@@ -669,7 +732,7 @@ def find_player_triplets_by_team(team_object, exclude_subs=False, half=0, exclud
     # team_object = get_team(match_OPTA, team=team)
     # mapped_players = get_mapped_players(match_OPTA, team=team, exclude_subs=exclude_subs)
     mapped_players = get_mapped_players_by_team(team_object, exclude_subs=exclude_subs, half=half)
-    all_events = [e for e in team_object.events if e.is_pass or e.is_shot and (half not in [1,2] or half == e.period_id)]
+    all_events = [e for e in team_object.events if (e.is_pass or e.is_shot) and (half not in [1,2] or half == e.period_id)]
 
     triplet_scores = {}
     for poss_triplet in combinations([p_id for p_id in mapped_players], 3):

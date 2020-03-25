@@ -189,6 +189,18 @@ class Formation:
         edge_colors = {e : "black" for e in G.edges()}
         if show_triplets is not None:
             triplet_list = onet.find_player_triplets_by_team(self.team_object, half=show_triplets)
+            # turn triplet_list into by-role triplet list
+            if transfer_map is not None:
+                new_triplet_dict = {}
+                for triplet, num_passes in triplet_list:
+                    new_triplet = []
+                    for p in triplet:
+                        new_triplet.append(transfer_map[p])
+                    triplet = tuple(sorted(new_triplet))
+                    current_count = new_triplet_dict.get(triplet, 0)
+                    new_triplet_dict[triplet] = current_count + num_passes
+                triplet_list = sorted(new_triplet_dict.items(), key=lambda t:t[1])
+
             # top n triplets
             n = 5
             use_triplets = triplet_list[-5:]
@@ -196,13 +208,14 @@ class Formation:
             green = "00ff00"
             yellow = "001100"
             for i, t_info in enumerate(use_triplets):
+                print(t_info)
                 triplet, num_passes = t_info
 
-                if transfer_map is not None:
-                    new_triplet = []
-                    for p in triplet:
-                        new_triplet.append(transfer_map[p])
-                    triplet = new_triplet
+                # if transfer_map is not None:
+                #     new_triplet = []
+                #     for p in triplet:
+                #         new_triplet.append(transfer_map[p])
+                #     triplet = new_triplet
 
                 highlight_color = onet.get_color_by_gradient(
                     float(n - i) / n,
@@ -239,12 +252,13 @@ class Formation:
 
             n = len(highlight_edges)
 
+            highlight_edges.reverse()
             for i, (e, v) in enumerate(highlight_edges):
                 pair = (e[0], e[1])
                 rev_pair = (e[1], e[0])
 
                 highlight_color = onet.get_color_by_gradient(
-                    float(i) / n,
+                    float(n - i) / n,
                     low_color = green,
                     high_color = yellow
                 )

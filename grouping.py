@@ -1,3 +1,5 @@
+import centrality
+import change_patterns
 import formations
 import OPTA as opta
 import OPTA_weighted_networks as onet
@@ -97,6 +99,78 @@ def split_by_opposing_formation(formations):
     return first_half, second_half
 
 
+def print_closenesses(match_OPTA, formation, home_or_away_string, half=0):
+    pass_map = onet.get_all_pass_destinations(
+        match_OPTA,
+        team=home_or_away_string,
+        exclude_subs=False,
+        half=half
+    )
+    player_times = formation.team_object.get_on_pitch_periods()
+    graphs = centrality.get_directed_graphs(
+        pass_map,
+        player_times,
+        formation.team_object,
+        role_grouped=True
+    )
+
+    closeness = centrality.current_flow_closeness_directed(
+        graphs['scaled_graph'],
+        start_node=1 # goalkeeper role
+    )
+    print("Match {}.{}:\t {}".format(
+        match_id,
+        half,
+        [r_id for r_id, _ in sorted(closeness.items(), key=lambda t:-t[1])]
+    ))
+
+    # all_match_centralities.append([closeness[r_id] for r_id in sorted(closeness.keys())])
+    # all_match_indices[all_match_index] = {'match': match_id, 'period': half}
+    # all_match_index += 1
+
+    # match_closenesses[half] = [r_id for r_id, _ in sorted(closeness.items(), key=lambda t:-t[1])]
+    # match_closenesses[half] = [i for i, r_id in sorted(
+    #     list(enumerate(match_closenesses[half])),
+    #     key=lambda t:t[1]
+    # )]
+
+
+def print_betweennesses(match_OPTA, formation, home_or_away_string, half=0):
+    pass_map = onet.get_all_pass_destinations(
+        match_OPTA,
+        team=home_or_away_string,
+        exclude_subs=False,
+        half=half
+    )
+    player_times = formation.team_object.get_on_pitch_periods()
+    graphs = centrality.get_directed_graphs(
+        pass_map,
+        player_times,
+        formation.team_object,
+        role_grouped=True
+    )
+
+    betweenness = centrality.current_flow_betweenness_directed(
+        graphs['scaled_graph'],
+        start_node=1 # goalkeeper role
+    )
+    print("Match {}.{}:\t {}".format(
+        match_id,
+        half,
+        [r_id for r_id, _ in sorted(betweenness.items(), key=lambda t:-t[1])]
+    ))
+
+    # all_match_centralities.append([closeness[r_id] for r_id in sorted(closeness.keys())])
+    # all_match_indices[all_match_index] = {'match': match_id, 'period': half}
+    # all_match_index += 1
+
+    # match_closenesses[half] = [r_id for r_id, _ in sorted(closeness.items(), key=lambda t:-t[1])]
+    # match_closenesses[half] = [i for i, r_id in sorted(
+    #     list(enumerate(match_closenesses[half])),
+    #     key=lambda t:t[1]
+    # )]
+
+
 fpath = "../Copenhagen/"
 all_copenhagen_match_ids = [
     984459,
@@ -132,8 +206,12 @@ copenhagen_formations = {formation.match_id: formation for formation in copenhag
 
 matches = {}
 pass_maps = {}
+role_pass_maps = {}
 first_half_pass_maps = {}
+first_half_role_pass_maps = {}
 second_half_pass_maps = {}
+second_half_role_pass_maps = {}
+copenhagen_home_away = {}
 for match_id in all_copenhagen_match_ids:
     fname = str(match_id)
     match_OPTA = opta.read_OPTA_f7(fpath, fname)
@@ -145,43 +223,144 @@ for match_id in all_copenhagen_match_ids:
         pass_maps[match_id] = onet.get_all_pass_destinations(match_OPTA, team="home")
         first_half_pass_maps[match_id] = onet.get_all_pass_destinations(match_OPTA, team="home", half=1)
         second_half_pass_maps[match_id] = onet.get_all_pass_destinations(match_OPTA, team="home", half=2)
+        copenhagen_home_away[match_id] = "home"
     else:
         copenhagen_formations[match_id].add_team_object(match_OPTA.awayteam)
         pass_maps[match_id] = onet.get_all_pass_destinations(match_OPTA, team="away")
         first_half_pass_maps[match_id] = onet.get_all_pass_destinations(match_OPTA, team="away", half=1)
         second_half_pass_maps[match_id] = onet.get_all_pass_destinations(match_OPTA, team="away", half=2)
+        copenhagen_home_away[match_id] = "away"
+
+    _, role_pass_maps[match_id] = onet.convert_pass_map_to_roles(
+        copenhagen_formations[match_id].team_object,
+        pass_maps[match_id]
+    )
+    _, first_half_role_pass_maps[match_id] = onet.convert_pass_map_to_roles(
+        copenhagen_formations[match_id].team_object,
+        first_half_pass_maps[match_id]
+    )
+    _, second_half_role_pass_maps[match_id] = onet.convert_pass_map_to_roles(
+        copenhagen_formations[match_id].team_object,
+        second_half_pass_maps[match_id]
+    )
 
     copenhagen_formations[match_id].add_goalkeeper()
 
 if False:
     win_or_loss_dict, scores = split_by_wins(matches, copenhagen_team_id)
-    for match_id in win_or_loss_dict["losses"]:
-        formation = copenhagen_formations[match_id]
-        print(scores[match_id])
-        formation.get_formation_graph_by_role(pass_maps[match_id])
+    print("--- CLOSENESSES ---")
+    for dict_type in ["losses", "wins"]:
+        print("--- GAME TYPE {} ---".format(dict_type))
+        for match_id in win_or_loss_dict[dict_type]:
+            formation = copenhagen_formations[match_id]
+            # print(scores[match_id])
+            # formation.get_formation_graph_by_role(pass_maps[match_id])
+
+            match_OPTA = matches[match_id]
+            home_or_away_string = copenhagen_home_away[match_id]
+
+            print_closenesses(match_OPTA, formation, home_or_away_string)
+    print()
+    print("--- BETWEENNESSES ---")
+    for dict_type in ["losses", "wins"]:
+        print("--- GAME TYPE {} ---".format(dict_type))
+        for match_id in win_or_loss_dict[dict_type]:
+            formation = copenhagen_formations[match_id]
+            # print(scores[match_id])
+            # formation.get_formation_graph_by_role(pass_maps[match_id])
+
+            match_OPTA = matches[match_id]
+            home_or_away_string = copenhagen_home_away[match_id]
+
+            print_betweennesses(match_OPTA, formation, home_or_away_string)
+
 
 
 if False:
     home_or_away_dict = split_by_home(matches, copenhagen_team_id)
-    for match_id in home_or_away_dict["away"]:
-        formation = copenhagen_formations[match_id]
-        formation.get_formation_graph_by_role(pass_maps[match_id])
+    print("--- CLOSENESSES ---")
+    for dict_type in ["home", "away"]:
+        print("--- GAME TYPE {} ---".format(dict_type))
+        for match_id in home_or_away_dict[dict_type]:
+            formation = copenhagen_formations[match_id]
+            # formation.get_formation_graph_by_role(pass_maps[match_id])
+
+            match_OPTA = matches[match_id]
+            home_or_away_string = copenhagen_home_away[match_id]
+
+            print_closenesses(match_OPTA, formation, home_or_away_string)
+    print()
+    print("--- BETWEENNESSES ---")
+    for dict_type in ["home", "away"]:
+        print("--- GAME TYPE {} ---".format(dict_type))
+        for match_id in home_or_away_dict[dict_type]:
+            formation = copenhagen_formations[match_id]
+            # print(scores[match_id])
+            # formation.get_formation_graph_by_role(pass_maps[match_id])
+
+            match_OPTA = matches[match_id]
+            home_or_away_string = copenhagen_home_away[match_id]
+
+            print_betweennesses(match_OPTA, formation, home_or_away_string)
 
 
 if True:
     first_half, second_half = split_by_opposing_formation(copenhagen_formations)
     formation_groups = [(1, 2, 3, 15), (9, 11), (12,)]
 
+    print("--- CLOSENESSES ---")
     for group in formation_groups:
         print(group)
         for formation_id in group:
             for match_id in first_half.get(str(formation_id), []):
                 formation = copenhagen_formations[match_id]
-                print(formation.opp_formation_1)
-                formation.get_formation_graph_by_role(first_half_pass_maps[match_id])
+                # print(formation.opp_formation_1)
+                # formation.get_formation_graph_by_role(first_half_pass_maps[match_id])
+                match_OPTA = matches[match_id]
+                home_or_away_string = copenhagen_home_away[match_id]
+                print_closenesses(match_OPTA, formation, home_or_away_string, half=1)
+                change_patterns.plot_closeness_vs_betweenness_from_pass_map(
+                    first_half_role_pass_maps[match_id],
+                    title="Match {}.1".format(match_id)
+                )
+
             for match_id in second_half.get(str(formation_id), []):
                 formation = copenhagen_formations[match_id]
-                print(formation.opp_formation_2)
-                formation.get_formation_graph_by_role(second_half_pass_maps[match_id])
+                # print(formation.opp_formation_2)
+                # formation.get_formation_graph_by_role(second_half_pass_maps[match_id])
+                match_OPTA = matches[match_id]
+                home_or_away_string = copenhagen_home_away[match_id]
+                print_closenesses(match_OPTA, formation, home_or_away_string, half=2)
+                change_patterns.plot_closeness_vs_betweenness_from_pass_map(
+                    second_half_role_pass_maps[match_id],
+                    title="Match {}.2".format(match_id)
+                )
 
+    print("--- BETWEENNESSES ---")
+    for group in formation_groups:
+        print(group)
+        for formation_id in group:
+            for match_id in first_half.get(str(formation_id), []):
+                formation = copenhagen_formations[match_id]
+                # print(formation.opp_formation_1)
+                # formation.get_formation_graph_by_role(first_half_pass_maps[match_id])
+                match_OPTA = matches[match_id]
+                home_or_away_string = copenhagen_home_away[match_id]
+                print_betweennesses(match_OPTA, formation, home_or_away_string, half=1)
+                change_patterns.plot_closeness_vs_betweenness_from_pass_map(
+                    first_half_role_pass_maps[match_id],
+                    title="Match {}.1".format(match_id)
+                )
+
+            for match_id in second_half.get(str(formation_id), []):
+                formation = copenhagen_formations[match_id]
+                # print(formation.opp_formation_2)
+                # formation.get_formation_graph_by_role(second_half_pass_maps[match_id])
+                match_OPTA = matches[match_id]
+                home_or_away_string = copenhagen_home_away[match_id]
+                print_betweennesses(match_OPTA, formation, home_or_away_string, half=2)
+                change_patterns.plot_closeness_vs_betweenness_from_pass_map(
+                    second_half_role_pass_maps[match_id],
+                    title="Match {}.2".format(match_id)
+                )
 
