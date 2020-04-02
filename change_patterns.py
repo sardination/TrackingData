@@ -6,6 +6,9 @@ import matplotlib.colors as mpl_colors
 import matplotlib.pyplot as plt
 import numpy as np
 
+offense = [9, 10]
+midfield = [4, 7, 8, 11]
+defense = [2, 3, 5, 6]
 
 def plot_match_to_average_pagerank(average_pageranks, match, team="home", match_id=None):
     match_pageranks = onet.get_pagerank(
@@ -34,7 +37,18 @@ def plot_match_to_average_pagerank(average_pageranks, match, team="home", match_
     line_y_vals = line_x_vals
     plt.plot(line_x_vals, line_y_vals, '--', color='r')
 
-    ax.scatter(x, y)
+    colors = []
+    for i, p_id in enumerate(players):
+        if p_id in offense:
+            colors.append('#28b463')
+        elif p_id in midfield:
+            colors.append('#f4d03f')
+        elif p_id in defense:
+            colors.append('#ec7063')
+        else:
+            colors.append('#85c1e9')
+
+    ax.scatter(x, y, c=colors)
     for i, p_id in enumerate(players):
         ax.annotate(p_id, (x[i], y[i]))
 
@@ -73,7 +87,18 @@ def plot_closeness_vs_betweenness_from_pass_map(pass_map, title="Average Match")
     ax.set_xlim([0, 3])
     ax.set_ylim([0, 0.8])
 
-    ax.scatter(x, y)
+    colors = []
+    for i, p_id in enumerate(players):
+        if p_id in offense:
+            colors.append('#28b463')
+        elif p_id in midfield:
+            colors.append('#f4d03f')
+        elif p_id in defense:
+            colors.append('#ec7063')
+        else:
+            colors.append('#85c1e9')
+
+    ax.scatter(x, y, c=colors)
     for i, p_id in enumerate(players):
         ax.annotate(p_id, (x[i], y[i]))
 
@@ -131,7 +156,18 @@ def plot_closeness_vs_betweenness(match_OPTA, team_id, match_id=None, half=0):
     ax.set_xlim([0, 3])
     ax.set_ylim([0, 0.8])
 
-    ax.scatter(x, y)
+    colors = []
+    for i, p_id in enumerate(players):
+        if p_id in offense:
+            colors.append('#28b463')
+        elif p_id in midfield:
+            colors.append('#f4d03f')
+        elif p_id in defense:
+            colors.append('#ec7063')
+        else:
+            colors.append('#85c1e9')
+
+    ax.scatter(x, y, c=colors)
     for i, p_id in enumerate(players):
         ax.annotate(p_id, (x[i], y[i]))
 
@@ -194,7 +230,18 @@ def plot_cross_match_centrality_by_pass_maps(pass_maps, metric="closeness"):
     line_y_vals = line_x_vals
     plt.plot(line_x_vals, line_y_vals, '--', color='r')
 
-    ax.scatter(x, y)
+    colors = []
+    for i, p_id in enumerate(players):
+        if p_id in offense:
+            colors.append('#28b463')
+        elif p_id in midfield:
+            colors.append('#f4d03f')
+        elif p_id in defense:
+            colors.append('#ec7063')
+        else:
+            colors.append('#85c1e9')
+
+    ax.scatter(x, y, c=colors)
     for i, p_id in enumerate(players):
         ax.annotate(p_id, (x[i], y[i]))
 
@@ -297,7 +344,18 @@ def plot_cross_match_centrality(matches, team_id, metric="closeness"):
     line_y_vals = line_x_vals
     plt.plot(line_x_vals, line_y_vals, '--', color='r')
 
-    ax.scatter(x, y)
+    colors = []
+    for i, p_id in enumerate(players):
+        if p_id in offense:
+            colors.append('#28b463')
+        elif p_id in midfield:
+            colors.append('#f4d03f')
+        elif p_id in defense:
+            colors.append('#ec7063')
+        else:
+            colors.append('#85c1e9')
+
+    ax.scatter(x, y, c=colors)
     for i, p_id in enumerate(players):
         ax.annotate(p_id, (x[i], y[i]))
 
@@ -390,7 +448,18 @@ def plot_cross_half_centrality(match, team_id, metric="closeness"):
     line_y_vals = line_x_vals
     plt.plot(line_x_vals, line_y_vals, '--', color='r')
 
-    ax.scatter(x, y)
+    colors = []
+    for i, p_id in enumerate(players):
+        if p_id in offense:
+            colors.append('#28b463')
+        elif p_id in midfield:
+            colors.append('#f4d03f')
+        elif p_id in defense:
+            colors.append('#ec7063')
+        else:
+            colors.append('#85c1e9')
+
+    ax.scatter(x, y, c=colors)
     for i, p_id in enumerate(players):
         ax.annotate(p_id, (x[i], y[i]))
 

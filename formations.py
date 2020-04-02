@@ -183,7 +183,7 @@ class Formation:
             G,
             player_locations,
             node_size=node_sizes,
-            node_color='blue',
+            node_color="#5dade2",
             alpha=0.8
         )
         # nx.draw_networkx_labels(
@@ -192,10 +192,10 @@ class Formation:
         #     {p_id: p_id for p_id in player_ids},
         #     font_size=12,
         #     font_family='sans-serif',
-        #     font_color='red'
+        #     font_color='black'
         # )
 
-        edge_colors = {e : "black" for e in G.edges()}
+        edge_colors = {e : "#777777" for e in G.edges()}
         if show_triplets is not None:
             triplet_list = defined_triplets
             if defined_triplets is None:
@@ -367,7 +367,7 @@ class Formation:
             node_sizes[node] = this_node_sizes[node] - other_node_sizes[node]
             node_locations[node] = this_node_locations[node]
 
-        node_colors = {node: 'orange' if size < 0 else 'blue' for node, size in node_sizes.items()}
+        node_colors = {node: "orange" if size < 0 else "#5dade2" for node, size in node_sizes.items()}
         node_sizes = {node: abs(size) for node, size in node_sizes.items()}
 
         # get edge difference colors and sizes
@@ -395,10 +395,10 @@ class Formation:
                 diff_width = this_width - other_width
                 # edge_widths[source][dest] = abs(diff_width)
                 if diff_width < 0:
-                    edge_colors[source][dest] = 'orange'
+                    edge_colors[source][dest] = "orange"
                     edge_widths[source][dest] = other_role_pass_map[source][dest]["avg_pass_dist"] * 500
                 else:
-                    edge_colors[source][dest] = 'blue'
+                    edge_colors[source][dest] = "#5dade2"
                     edge_widths[source][dest] = this_role_pass_map[source][dest]["avg_pass_dist"] * 500
 
                 difference_graph.add_edge(source, dest, weight=abs(diff_width))
@@ -416,7 +416,7 @@ class Formation:
             {node:node for node in difference_graph.nodes()},
             font_size=12,
             font_family='sans-serif',
-            font_color='red'
+            font_color='black'
         )
 
         nx.draw_networkx_edges(

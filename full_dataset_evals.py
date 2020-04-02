@@ -216,13 +216,13 @@ for half in range(0, 3):
     top_10_edges = list(sorted(edge_betweenness.items(), key=lambda t:-t[1]))[:10]
     for key, value in top_10_edges:
         print("{} -- {} --> {}: {}".format(key[0], average_role_pass_map[half][key[0]][key[1]]['num_passes'], key[1], value))
-    average_formation.get_formation_graph(
-        pass_map=average_role_pass_map[half],
-        # highlight_edges=top_10_edges
-        show_triplets=half,
-        defined_triplets=top_5_all_counts[half]
-    )
-    # average_formation.get_formation_graph(pass_map=average_role_pass_map[half])
+    # average_formation.get_formation_graph(
+    #     pass_map=average_role_pass_map[half],
+    #     # highlight_edges=top_10_edges
+    #     show_triplets=half,
+    #     defined_triplets=top_5_all_counts[half]
+    # )
+    average_formation.get_formation_graph(pass_map=average_role_pass_map[half])
 
 # print()
 print("--- DIFFERENCING NETWORKS ---")
