@@ -68,44 +68,51 @@ for match_id in all_copenhagen_match_ids:
         )
 
 # Find most popular triplets
-triplet_count = {}
-top_5_triplet_count = {}
-for match_id, match in matches.items():
-    team_object = copenhagen_team_objects[match_id]
-    home_or_away = copenhagen_home_away[match_id]
-    pass_map = onet.get_all_pass_destinations(match, team=home_or_away, exclude_subs=False, half=0)
+all_counts = []
+top_5_all_counts = []
+for half in [0, 1, 2]:
+    triplet_count = {}
+    top_5_triplet_count = {}
+    for match_id, match in matches.items():
+        team_object = copenhagen_team_objects[match_id]
+        home_or_away = copenhagen_home_away[match_id]
+        pass_map = onet.get_all_pass_destinations(match, team=home_or_away, exclude_subs=False, half=half)
 
-    role_mappings, role_pass_map = onet.convert_pass_map_to_roles(team_object, pass_map)
-    triplet_list_by_id = onet.find_player_triplets_by_team(team_object, half=0) # full match
-    triplet_list = []
-    for triplet, num_passes in triplet_list_by_id:
-        new_triplet = []
-        for p in triplet:
-            new_triplet.append(role_mappings[p])
-        triplet_list.append((tuple(sorted(new_triplet)), num_passes))
+        role_mappings, role_pass_map = onet.convert_pass_map_to_roles(team_object, pass_map)
+        triplet_list_by_id = onet.find_player_triplets_by_team(team_object, half=half)
+        triplet_list = []
+        for triplet, num_passes in triplet_list_by_id:
+            new_triplet = []
+            for p in triplet:
+                new_triplet.append(role_mappings[p])
+            triplet_list.append((tuple(sorted(new_triplet)), num_passes))
 
-    this_match_triplets = {}
-    for triplet, num_passes in triplet_list:
-        try:
-            triplet_count[triplet] += num_passes
-        except KeyError:
-            triplet_count[triplet] = num_passes
+        this_match_triplets = {}
+        for triplet, num_passes in triplet_list:
+            try:
+                triplet_count[triplet] += num_passes
+            except KeyError:
+                triplet_count[triplet] = num_passes
 
-        try:
-            this_match_triplets[triplet] += num_passes
-        except KeyError:
-            this_match_triplets[triplet] = num_passes
+            try:
+                this_match_triplets[triplet] += num_passes
+            except KeyError:
+                this_match_triplets[triplet] = num_passes
 
-    for triplet, num_passes in sorted(this_match_triplets.items(), key=lambda t: -t[1])[:5]:
-        try:
-            top_5_triplet_count[triplet] += 1
-        except KeyError:
-            top_5_triplet_count[triplet] = 1
+        for triplet, num_passes in sorted(this_match_triplets.items(), key=lambda t: -t[1])[:5]:
+            try:
+                top_5_triplet_count[triplet] += 1
+            except KeyError:
+                top_5_triplet_count[triplet] = 1
 
-top_5_triplet_count_sorted = sorted(top_5_triplet_count.items(), key=lambda t:-t[1])
-print(top_5_triplet_count_sorted)
-triplet_count_sorted = sorted(triplet_count.items(), key=lambda t:-t[1])[:10]
-print(triplet_count_sorted)
+    top_5_triplet_count_sorted = sorted(top_5_triplet_count.items(), key=lambda t:-t[1])
+    print(top_5_triplet_count_sorted)
+    triplet_count_sorted = sorted(triplet_count.items(), key=lambda t:-t[1])[:10]
+    print(triplet_count_sorted)
+
+    all_counts.append(triplet_count_sorted)
+    top_5_triplet_count_sorted.reverse()
+    top_5_all_counts.append(top_5_triplet_count_sorted)
 
 print()
 print("------ AVERAGE FORMATION ------")
@@ -211,23 +218,40 @@ for half in range(0, 3):
         print("{} -- {} --> {}: {}".format(key[0], average_role_pass_map[half][key[0]][key[1]]['num_passes'], key[1], value))
     average_formation.get_formation_graph(
         pass_map=average_role_pass_map[half],
-        highlight_edges=top_10_edges
+        # highlight_edges=top_10_edges
+        show_triplets=half,
+        defined_triplets=top_5_all_counts[half]
     )
     # average_formation.get_formation_graph(pass_map=average_role_pass_map[half])
 
 # print()
-# print("--- DIFFERENCING NETWORKS ---")
-# match_id = 984517
-# match_pass_maps = [
-#     onet.get_all_pass_destinations(
-#         matches[match_id],
-#         team=copenhagen_home_away[match_id],
-#         exclude_subs=False,
-#         half=half
-#     )
-#     for half in [0,1,2]
-# ]
-# formation = copenhagen_formations[match_id]
+print("--- DIFFERENCING NETWORKS ---")
+match_id = 984517
+match_pass_maps = [
+    onet.get_all_pass_destinations(
+        matches[match_id],
+        team=copenhagen_home_away[match_id],
+        exclude_subs=False,
+        half=half
+    )
+    for half in [0,1,2]
+]
+formation = copenhagen_formations[match_id]
+clustering_coeffs_f = onet.get_clustering_coefficients(average_role_pass_map[0].keys(), average_role_pass_map[0], weighted=True)
+clustering_coeffs_1 = onet.get_clustering_coefficients(average_role_pass_map[1].keys(), average_role_pass_map[1], weighted=True)
+clustering_coeffs_2 = onet.get_clustering_coefficients(average_role_pass_map[2].keys(), average_role_pass_map[2], weighted=True)
+for p in range(1, 12):
+    print("f {}: {}".format(p, clustering_coeffs_f[p]))
+
+for p in range(1, 12):
+    print("h1 {}: {}".format(p, clustering_coeffs_1[p]))
+
+for p in range(1, 12):
+    print("h2 {}: {}".format(p, clustering_coeffs_2[p]))
+
+for p in range(1, 12):
+    print("{}: {}".format(p, clustering_coeffs_1[p] - clustering_coeffs_2[p]))
+
 # for half in [0, 1, 2]:
 #     print("--- DIFFERENCE FOR PERIOD {} ---".format(half))
 #     formation.get_formation_difference_graph(
@@ -237,13 +261,13 @@ for half in range(0, 3):
 #         other_role=True
 #     )
 
-# average_formation.get_formation_difference_graph(
-#     average_role_pass_map[1],
-#     average_formation,
-#     average_role_pass_map[2],
-#     self_role=True,
-#     other_role=True
-# )
+average_formation.get_formation_difference_graph(
+    average_role_pass_map[1],
+    average_formation,
+    average_role_pass_map[2],
+    self_role=True,
+    other_role=True
+)
 
 # for half in range(0, 3):
 #     ns, ac = onet.get_eigenvalues(average_role_pass_map[half].keys(), average_role_pass_map[half], goalie=1)

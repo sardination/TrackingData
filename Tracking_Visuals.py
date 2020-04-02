@@ -24,9 +24,17 @@ def plot_pitch(match, fig=None, ax=None, lw=2, ps=20, no_center_spot=False):
     # ALL DIMENSIONS IN cm
     xborder = 300
     yborder = 300
-    cm_per_yard = 91.44
-    half_pitch_width = match.fPitchYSizeMeters*100/2.  # in cm
-    half_pitch_length = match.fPitchXSizeMeters*100/2.
+    xborder = 3
+    yborder = 3
+    # cm_per_yard = 91.44
+    cm_per_yard = 1
+
+    half_pitch_width = 45
+    half_pitch_length = 60
+
+    if match is not None:
+        half_pitch_width = match.fPitchYSizeMeters*100/2.  # in cm
+        half_pitch_length = match.fPitchXSizeMeters*100/2.
     signs = [-1, 1]
     # yards to cm
     goal_line_width = 8*cm_per_yard
@@ -41,58 +49,63 @@ def plot_pitch(match, fig=None, ax=None, lw=2, ps=20, no_center_spot=False):
     D_pos = 12*cm_per_yard
     centre_circle_radius = 10*cm_per_yard
     # half way line # center circle
-    ax.plot([0, 0], [-half_pitch_width, half_pitch_width], lc, linewidth=lw)
+    ax.plot([0, 0], [-half_pitch_width, half_pitch_width], lc, linewidth=lw, color="#cccccc")
     if not no_center_spot:
-        ax.scatter(0.0, 0.0, marker='o', facecolor=lc, linewidth=0, s=ps)
+        ax.scatter(0.0, 0.0, marker='o', facecolor=lc, linewidth=0, s=ps, color="#cccccc")
     y = np.linspace(-1, 1, 50)*centre_circle_radius
     x = np.sqrt(centre_circle_radius**2-y**2)
-    ax.plot(x, y, lc, linewidth=lw)
-    ax.plot(-x, y, lc, linewidth=lw)
+    ax.plot(x, y, lc, linewidth=lw, color="#cccccc")
+    ax.plot(-x, y, lc, linewidth=lw, color="#cccccc")
     for s in signs:
         # plot pitch boundary
         ax.plot([-half_pitch_length, half_pitch_length],
-                [s*half_pitch_width, s*half_pitch_width], lc, linewidth=lw)
+                [s*half_pitch_width, s*half_pitch_width], lc, linewidth=lw, color="#cccccc")
         ax.plot([s*half_pitch_length, s*half_pitch_length],
-                [-half_pitch_width, half_pitch_width], lc, linewidth=lw)
+                [-half_pitch_width, half_pitch_width], lc, linewidth=lw, color="#cccccc")
         # goal posts & line
         ax.plot([s*half_pitch_length, s*half_pitch_length], [-goal_line_width /
-                                                             2., goal_line_width/2.], lc+'s', markersize=6*ps/20., linewidth=lw)
+                                                             2., goal_line_width/2.], lc+'s', markersize=6*ps/20., linewidth=lw, color="#cccccc")
         # 6 yard box
         ax.plot([s*half_pitch_length, s*half_pitch_length-s*box_length],
-                [box_width/2., box_width/2.], lc, linewidth=lw)
+                [box_width/2., box_width/2.], lc, linewidth=lw, color="#cccccc")
         ax.plot([s*half_pitch_length, s*half_pitch_length-s*box_length],
-                [-box_width/2., -box_width/2.], lc, linewidth=lw)
+                [-box_width/2., -box_width/2.], lc, linewidth=lw, color="#cccccc")
         ax.plot([s*half_pitch_length-s*box_length, s*half_pitch_length -
-                 s*box_length], [-box_width/2., box_width/2.], lc, linewidth=lw)
+                 s*box_length], [-box_width/2., box_width/2.], lc, linewidth=lw, color="#cccccc")
         # penalty area
         ax.plot([s*half_pitch_length, s*half_pitch_length-s*area_length],
-                [area_width/2., area_width/2.], lc, linewidth=lw)
+                [area_width/2., area_width/2.], lc, linewidth=lw, color="#cccccc")
         ax.plot([s*half_pitch_length, s*half_pitch_length-s*area_length],
-                [-area_width/2., -area_width/2.], lc, linewidth=lw)
+                [-area_width/2., -area_width/2.], lc, linewidth=lw, color="#cccccc")
         ax.plot([s*half_pitch_length-s*area_length, s*half_pitch_length -
-                 s*area_length], [-area_width/2., area_width/2.], lc, linewidth=lw)
+                 s*area_length], [-area_width/2., area_width/2.], lc, linewidth=lw, color="#cccccc")
         # penalty spot
         ax.scatter(s*half_pitch_length-s*penalty_spot, 0.0,
-                   marker='o', facecolor=lc, linewidth=0, s=ps)
+                   marker='o', facecolor=lc, linewidth=0, s=ps, color="#cccccc")
         # corner flags
         y = np.linspace(0, 1, 50)*corner_radius
         x = np.sqrt(corner_radius**2-y**2)
-        ax.plot(s*half_pitch_length-s*x, -half_pitch_width+y, lc, linewidth=lw)
-        ax.plot(s*half_pitch_length-s*x, half_pitch_width-y, lc, linewidth=lw)
+        ax.plot(s*half_pitch_length-s*x, -half_pitch_width+y, lc, linewidth=lw, color="#cccccc")
+        ax.plot(s*half_pitch_length-s*x, half_pitch_width-y, lc, linewidth=lw, color="#cccccc")
         # draw the D
         y = np.linspace(-1, 1, 50)*D_length
         x = np.sqrt(D_radius**2-y**2)+D_pos
-        ax.plot(s*half_pitch_length-s*x, y, lc, linewidth=lw)
+        ax.plot(s*half_pitch_length-s*x, y, lc, linewidth=lw, color="#cccccc")
 
     # ax.patch.set_facecolor("mediumspringgreen")
     ax.set_xticklabels([])
     ax.set_yticklabels([])
     ax.set_xticks([])
     ax.set_yticks([])
-    xmax = match.fPitchXSizeMeters*100/2. + xborder
-    ymax = match.fPitchYSizeMeters*100/2. + yborder
+    # xmax = match.fPitchXSizeMeters*100/2. + xborder
+    # ymax = match.fPitchYSizeMeters*100/2. + yborder
+    xmax = half_pitch_length + xborder
+    ymax = half_pitch_width + yborder
     ax.set_xlim([-xmax, xmax])
     ax.set_ylim([-ymax, ymax])
+
+    # plt.draw()
+    # plt.show()
     return fig, ax
 
 

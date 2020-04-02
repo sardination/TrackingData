@@ -1,4 +1,5 @@
 import OPTA_weighted_networks as onet
+import Tracking_Visuals as vis
 
 import csv
 from itertools import combinations
@@ -84,7 +85,7 @@ class Formation:
             self.player_locations.pop(original_player)
             self.player_locations[substitute_player] = original_location
 
-    def get_formation_graph(self, pass_map=None, transfer_map=None, show_triplets=None, highlight_edges=None):
+    def get_formation_graph(self, match=None, pass_map=None, transfer_map=None, show_triplets=None, highlight_edges=None, defined_triplets=None):
         """
         Create network graph based on pass map and formation information
 
@@ -94,6 +95,14 @@ class Formation:
             show_triplets: number of period (0, 1, 2) to show triplets for; None otherwise
             list of edges (edge, value): to highlight on the graph
         """
+
+        # fig, ax = vis.plot_pitch(None)
+        fig, ax = plt.subplots(figsize=(12, 8))
+        pitch_image = plt.imread("../background_field.png")
+        ax.imshow(pitch_image, extent=[-70, 70, -45, 45])
+        # ax.set_xlim([-70, 70])
+        # ax.set_ylim([-50, 50])
+
 
         G = nx.Graph()
 
@@ -146,8 +155,8 @@ class Formation:
             G.add_node(p_id)
 
         # reflect clustering coefficient in node size
-        # clustering_coeffs = onet.get_clustering_coefficients(pass_map.keys(), pass_map, weighted=True)
-        clustering_coeffs = onet.get_cyclic_clustering_coefficients(pass_map.keys(), pass_map, weighted=True)
+        clustering_coeffs = onet.get_clustering_coefficients(pass_map.keys(), pass_map, weighted=True)
+        # clustering_coeffs = onet.get_cyclic_clustering_coefficients(pass_map.keys(), pass_map, weighted=True)
         max_clustering_coeff = max(clustering_coeffs.values()) ** 3 # ^ 3 to exaggerate effect
         max_node_size = 1200
         # node_sizes = [(clustering_coeffs[n] ** 3 / max_clustering_coeff) * max_node_size if clustering_coeffs.get(n) is not None else 0
@@ -177,29 +186,31 @@ class Formation:
             node_color='blue',
             alpha=0.8
         )
-        nx.draw_networkx_labels(
-            G,
-            player_locations,
-            {p_id: p_id for p_id in player_ids},
-            font_size=12,
-            font_family='sans-serif',
-            font_color='red'
-        )
+        # nx.draw_networkx_labels(
+        #     G,
+        #     player_locations,
+        #     {p_id: p_id for p_id in player_ids},
+        #     font_size=12,
+        #     font_family='sans-serif',
+        #     font_color='red'
+        # )
 
         edge_colors = {e : "black" for e in G.edges()}
         if show_triplets is not None:
-            triplet_list = onet.find_player_triplets_by_team(self.team_object, half=show_triplets)
-            # turn triplet_list into by-role triplet list
-            if transfer_map is not None:
-                new_triplet_dict = {}
-                for triplet, num_passes in triplet_list:
-                    new_triplet = []
-                    for p in triplet:
-                        new_triplet.append(transfer_map[p])
-                    triplet = tuple(sorted(new_triplet))
-                    current_count = new_triplet_dict.get(triplet, 0)
-                    new_triplet_dict[triplet] = current_count + num_passes
-                triplet_list = sorted(new_triplet_dict.items(), key=lambda t:t[1])
+            triplet_list = defined_triplets
+            if defined_triplets is None:
+                triplet_list = onet.find_player_triplets_by_team(self.team_object, half=show_triplets)
+                # turn triplet_list into by-role triplet list
+                if transfer_map is not None:
+                    new_triplet_dict = {}
+                    for triplet, num_passes in triplet_list:
+                        new_triplet = []
+                        for p in triplet:
+                            new_triplet.append(transfer_map[p])
+                        triplet = tuple(sorted(new_triplet))
+                        current_count = new_triplet_dict.get(triplet, 0)
+                        new_triplet_dict[triplet] = current_count + num_passes
+                    triplet_list = sorted(new_triplet_dict.items(), key=lambda t:t[1])
 
             # top n triplets
             n = 5
@@ -405,7 +416,7 @@ class Formation:
             {node:node for node in difference_graph.nodes()},
             font_size=12,
             font_family='sans-serif',
-            font_color='black'
+            font_color='red'
         )
 
         nx.draw_networkx_edges(

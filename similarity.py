@@ -401,7 +401,7 @@ if __name__ == "__main__":
         #         pass_maps[1]
         #     )
 
-        match_id = 984517
+        match_id = 984528
         pass_maps = [
             onet.get_all_pass_destinations(
                 matches[match_id],

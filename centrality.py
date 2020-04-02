@@ -283,7 +283,8 @@ if __name__ == "__main__":
 
     # all_copenhagen_match_ids = [984463]
     # all_copenhagen_match_ids = [984574, 984459]
-    all_copenhagen_match_ids = [984517, 984528]
+    # all_copenhagen_match_ids = [984517, 984528]
+    all_copenhagen_match_ids = [984552]
 
     # for formation in copenhagen_formations:
     #     match_id = formation.match_id
@@ -319,7 +320,7 @@ if __name__ == "__main__":
 
     ###
         original_formation = formation
-        for period in [0, 1, 2]:
+        for period in [0]:
             formation = formations.copy_formation(original_formation)
             pass_map = onet.get_all_pass_destinations(match_OPTA, team=home_or_away, exclude_subs=False, half=period)
 
@@ -392,10 +393,10 @@ if __name__ == "__main__":
                 _, opposing_pass_map = onet.convert_pass_map_to_roles(opposing_team_object, opposing_pass_map)
 
             # Centrality measures
-            betweenness = current_flow_betweenness_directed(
-                graphs['scaled_graph'],
-                start_node=goalkeeper_node
-            )
+            # betweenness = current_flow_betweenness_directed(
+            #     graphs['scaled_graph'],
+            #     start_node=goalkeeper_node
+            # )
             # opp_betweenness = current_flow_betweenness_directed(
             #     opposing_graphs['scaled_graph'],
             #     start_node=opp_goalkeeper_node
@@ -411,28 +412,28 @@ if __name__ == "__main__":
 
             # print()
 
-            edge_betweenness = current_flow_edge_betweenness_directed(
-                graphs['scaled_graph'],
-                start_node=goalkeeper_node
-            )
-            opp_edge_betweenness = current_flow_edge_betweenness_directed(
-                opposing_graphs['scaled_graph'],
-                start_node=opp_goalkeeper_node
-            )
-            print("EDGE BETWEENNESS (TOP 10)")
-            print("Team {}".format(team_object.team_id))
-            for key, value in list(sorted(edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
-                print("{} -- {} --> {}: {}".format(key[0], pass_map[key[0]][key[1]]['num_passes'], key[1], value))
-            print("Team {}".format(opposing_team_object.team_id))
-            for key, value in list(sorted(opp_edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
-                print("{} -- {} --> {}: {}".format(key[0], opposing_pass_map[key[0]][key[1]]['num_passes'], key[1], value))
+            # edge_betweenness = current_flow_edge_betweenness_directed(
+            #     graphs['scaled_graph'],
+            #     start_node=goalkeeper_node
+            # )
+            # opp_edge_betweenness = current_flow_edge_betweenness_directed(
+            #     opposing_graphs['scaled_graph'],
+            #     start_node=opp_goalkeeper_node
+            # )
+            # print("EDGE BETWEENNESS (TOP 10)")
+            # print("Team {}".format(team_object.team_id))
+            # for key, value in list(sorted(edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
+            #     print("{} -- {} --> {}: {}".format(key[0], pass_map[key[0]][key[1]]['num_passes'], key[1], value))
+            # print("Team {}".format(opposing_team_object.team_id))
+            # for key, value in list(sorted(opp_edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
+            #     print("{} -- {} --> {}: {}".format(key[0], opposing_pass_map[key[0]][key[1]]['num_passes'], key[1], value))
 
-            print()
+            # print()
 
-            closenesses = current_flow_closeness_directed(
-                graphs['scaled_graph'],
-                start_node=goalkeeper_node
-            )
+            # closenesses = current_flow_closeness_directed(
+            #     graphs['scaled_graph'],
+            #     start_node=goalkeeper_node
+            # )
             # opp_closenesses = current_flow_closeness_directed(
             #     opposing_graphs['scaled_graph'],
             #     start_node=opp_goalkeeper_node
@@ -475,12 +476,12 @@ if __name__ == "__main__":
             print(formation.match_id)
 
             # send in highest betweenness edges to highlight on graph
-            highlight_edges = list(sorted(edge_betweenness.items(), key=lambda t:-t[1]))[:10]
+            # highlight_edges = list(sorted(edge_betweenness.items(), key=lambda t:-t[1]))[:10]
 
             if role_grouped:
                 formation.get_formation_graph_by_role(
                     original_pass_map,
-                    show_triplets=period
+                    # show_triplets=period
                     # highlight_edges=highlight_edges
                 )
                 # opposing_formation.get_formation_graph_by_role(original_opposing_pass_map)

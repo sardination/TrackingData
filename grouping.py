@@ -308,59 +308,99 @@ if True:
     first_half, second_half = split_by_opposing_formation(copenhagen_formations)
     formation_groups = [(1, 2, 3, 15), (9, 11), (12,)]
 
-    print("--- CLOSENESSES ---")
     for group in formation_groups:
         print(group)
+        edge_frequencies = {}
+        total_halves = 0
         for formation_id in group:
             for match_id in first_half.get(str(formation_id), []):
-                formation = copenhagen_formations[match_id]
-                # print(formation.opp_formation_1)
-                # formation.get_formation_graph_by_role(first_half_pass_maps[match_id])
-                match_OPTA = matches[match_id]
-                home_or_away_string = copenhagen_home_away[match_id]
-                print_closenesses(match_OPTA, formation, home_or_away_string, half=1)
-                change_patterns.plot_closeness_vs_betweenness_from_pass_map(
-                    first_half_role_pass_maps[match_id],
-                    title="Match {}.1".format(match_id)
+                pass_map = first_half_role_pass_maps[match_id]
+                graph = centrality.get_directed_graph_without_times(pass_map)
+                edge_betweenness = centrality.current_flow_edge_betweenness_directed(
+                    graph,
+                    start_node=1
                 )
+
+                for key, value in list(sorted(edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
+                    # print("{} -- {} --> {}: {}".format(key[0], pass_map[key[0]][key[1]]['num_passes'], key[1], value))
+                    curr_count = edge_frequencies.get(key, 0)
+                    edge_frequencies[key] = curr_count + 1
+                # print()
 
             for match_id in second_half.get(str(formation_id), []):
-                formation = copenhagen_formations[match_id]
-                # print(formation.opp_formation_2)
-                # formation.get_formation_graph_by_role(second_half_pass_maps[match_id])
-                match_OPTA = matches[match_id]
-                home_or_away_string = copenhagen_home_away[match_id]
-                print_closenesses(match_OPTA, formation, home_or_away_string, half=2)
-                change_patterns.plot_closeness_vs_betweenness_from_pass_map(
-                    second_half_role_pass_maps[match_id],
-                    title="Match {}.2".format(match_id)
+                pass_map = second_half_role_pass_maps[match_id]
+                graph = centrality.get_directed_graph_without_times(pass_map)
+                edge_betweenness = centrality.current_flow_edge_betweenness_directed(
+                    graph,
+                    start_node=1
                 )
 
-    print("--- BETWEENNESSES ---")
-    for group in formation_groups:
-        print(group)
-        for formation_id in group:
-            for match_id in first_half.get(str(formation_id), []):
-                formation = copenhagen_formations[match_id]
-                # print(formation.opp_formation_1)
-                # formation.get_formation_graph_by_role(first_half_pass_maps[match_id])
-                match_OPTA = matches[match_id]
-                home_or_away_string = copenhagen_home_away[match_id]
-                print_betweennesses(match_OPTA, formation, home_or_away_string, half=1)
-                change_patterns.plot_closeness_vs_betweenness_from_pass_map(
-                    first_half_role_pass_maps[match_id],
-                    title="Match {}.1".format(match_id)
-                )
+                for key, value in list(sorted(edge_betweenness.items(), key=lambda t:-t[1]))[:10]:
+                    # print("{} -- {} --> {}: {}".format(key[0], pass_map[key[0]][key[1]]['num_passes'], key[1], value))
+                    curr_count = edge_frequencies.get(key, 0)
+                    edge_frequencies[key] = curr_count + 1
+                # print()
 
-            for match_id in second_half.get(str(formation_id), []):
-                formation = copenhagen_formations[match_id]
-                # print(formation.opp_formation_2)
-                # formation.get_formation_graph_by_role(second_half_pass_maps[match_id])
-                match_OPTA = matches[match_id]
-                home_or_away_string = copenhagen_home_away[match_id]
-                print_betweennesses(match_OPTA, formation, home_or_away_string, half=2)
-                change_patterns.plot_closeness_vs_betweenness_from_pass_map(
-                    second_half_role_pass_maps[match_id],
-                    title="Match {}.2".format(match_id)
-                )
+            total_halves += len(first_half.get(str(formation_id), [])) + len(second_half.get(str(formation_id), []))
+
+        for key, value in edge_frequencies.items():
+            edge_frequencies[key] = float(value) / (total_halves)
+
+        print(sorted(edge_frequencies.items(), key=lambda t:-t[1]))
+
+    # print("--- CLOSENESSES ---")
+    # for group in formation_groups:
+    #     print(group)
+    #     for formation_id in group:
+    #         for match_id in first_half.get(str(formation_id), []):
+    #             formation = copenhagen_formations[match_id]
+    #             # print(formation.opp_formation_1)
+    #             # formation.get_formation_graph_by_role(first_half_pass_maps[match_id])
+    #             match_OPTA = matches[match_id]
+    #             home_or_away_string = copenhagen_home_away[match_id]
+    #             print_closenesses(match_OPTA, formation, home_or_away_string, half=1)
+    #             change_patterns.plot_closeness_vs_betweenness_from_pass_map(
+    #                 first_half_role_pass_maps[match_id],
+    #                 title="Match {}.1".format(match_id)
+    #             )
+
+    #         for match_id in second_half.get(str(formation_id), []):
+    #             formation = copenhagen_formations[match_id]
+    #             # print(formation.opp_formation_2)
+    #             # formation.get_formation_graph_by_role(second_half_pass_maps[match_id])
+    #             match_OPTA = matches[match_id]
+    #             home_or_away_string = copenhagen_home_away[match_id]
+    #             print_closenesses(match_OPTA, formation, home_or_away_string, half=2)
+    #             change_patterns.plot_closeness_vs_betweenness_from_pass_map(
+    #                 second_half_role_pass_maps[match_id],
+    #                 title="Match {}.2".format(match_id)
+    #             )
+
+    # print("--- BETWEENNESSES ---")
+    # for group in formation_groups:
+    #     print(group)
+    #     for formation_id in group:
+    #         for match_id in first_half.get(str(formation_id), []):
+    #             formation = copenhagen_formations[match_id]
+    #             # print(formation.opp_formation_1)
+    #             # formation.get_formation_graph_by_role(first_half_pass_maps[match_id])
+    #             match_OPTA = matches[match_id]
+    #             home_or_away_string = copenhagen_home_away[match_id]
+    #             print_betweennesses(match_OPTA, formation, home_or_away_string, half=1)
+    #             change_patterns.plot_closeness_vs_betweenness_from_pass_map(
+    #                 first_half_role_pass_maps[match_id],
+    #                 title="Match {}.1".format(match_id)
+    #             )
+
+    #         for match_id in second_half.get(str(formation_id), []):
+    #             formation = copenhagen_formations[match_id]
+    #             # print(formation.opp_formation_2)
+    #             # formation.get_formation_graph_by_role(second_half_pass_maps[match_id])
+    #             match_OPTA = matches[match_id]
+    #             home_or_away_string = copenhagen_home_away[match_id]
+    #             print_betweennesses(match_OPTA, formation, home_or_away_string, half=2)
+    #             change_patterns.plot_closeness_vs_betweenness_from_pass_map(
+    #                 second_half_role_pass_maps[match_id],
+    #                 title="Match {}.2".format(match_id)
+    #             )
 
